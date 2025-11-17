@@ -1,18 +1,25 @@
 import { useEffect } from 'react';
 import { useCaptionStore } from '../stores/captionStore';
 import { useVideoControl } from './useVideoControl';
+import { useUIStore } from '../stores/uiStore';
 
 export function useKeyboardShortcuts() {
   const {
+    captions,
+    selectedCaptionIds,
     undo,
     redo,
     deleteSelectedCaptions,
     groupSelectedCaptions,
     ungroupSelectedCaptions,
-    getSelectedCaptions
+    getSelectedCaptions,
+    selectCaption,
+    areSelectedCaptionsAdjacent,
+    updateCaptionStyle
   } = useCaptionStore();
 
-  const { togglePlay, skip } = useVideoControl();
+  const { togglePlay } = useVideoControl();
+  const { currentTime, setCurrentTime, getStylePreset } = useUIStore();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -48,29 +55,86 @@ export function useKeyboardShortcuts() {
         deleteSelectedCaptions();
       }
 
-      // Group
+      // Group/Ungroup
       if (cmdOrCtrl && e.key === 'g') {
         e.preventDefault();
         const selected = getSelectedCaptions();
         if (selected.length > 1) {
-          groupSelectedCaptions();
+          if (areSelectedCaptionsAdjacent()) {
+            groupSelectedCaptions();
+          } else {
+            console.warn('Cannot group non-adjacent captions');
+          }
         } else if (selected.length === 1 && selected[0].isGrouped) {
           ungroupSelectedCaptions();
         }
       }
 
-      // Skip forward/backward
-      if (e.key === 'ArrowRight') {
+      // Navigate to next/previous caption with Arrow keys
+      if (e.key === 'ArrowRight' && !e.shiftKey) {
         e.preventDefault();
-        skip(e.shiftKey ? 5 : 1); // 5 seconds if shift, 1 second otherwise
+        navigateToNextCaption();
       }
-      if (e.key === 'ArrowLeft') {
+      if (e.key === 'ArrowLeft' && !e.shiftKey) {
         e.preventDefault();
-        skip(e.shiftKey ? -5 : -1);
+        navigateToPreviousCaption();
+      }
+
+      // Apply style presets with number keys (1-9)
+      if (/^[1-9]$/.test(e.key) && !cmdOrCtrl && !e.shiftKey) {
+        e.preventDefault();
+        const slot = parseInt(e.key);
+        const preset = getStylePreset(slot);
+        if (preset && selectedCaptionIds.length > 0) {
+          selectedCaptionIds.forEach(id => {
+            updateCaptionStyle(id, preset.style);
+          });
+        }
+      }
+    };
+
+    const navigateToNextCaption = () => {
+      if (captions.length === 0) return;
+
+      // Find the next caption after current time
+      const nextCaption = captions.find(c => c.startTime > currentTime);
+      if (nextCaption) {
+        setCurrentTime(nextCaption.startTime);
+        selectCaption(nextCaption.id, 'single');
+      }
+    };
+
+    const navigateToPreviousCaption = () => {
+      if (captions.length === 0) return;
+
+      // Find the previous caption before current time
+      const previousCaption = [...captions]
+        .reverse()
+        .find(c => c.endTime < currentTime);
+
+      if (previousCaption) {
+        setCurrentTime(previousCaption.startTime);
+        selectCaption(previousCaption.id, 'single');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, deleteSelectedCaptions, groupSelectedCaptions, ungroupSelectedCaptions, getSelectedCaptions, togglePlay, skip]);
+  }, [
+    captions,
+    currentTime,
+    selectedCaptionIds,
+    undo,
+    redo,
+    deleteSelectedCaptions,
+    groupSelectedCaptions,
+    ungroupSelectedCaptions,
+    getSelectedCaptions,
+    selectCaption,
+    togglePlay,
+    setCurrentTime,
+    areSelectedCaptionsAdjacent,
+    updateCaptionStyle,
+    getStylePreset
+  ]);
 }

@@ -1,4 +1,11 @@
 import { create } from 'zustand';
+import { CaptionStyle } from '../types/caption.types';
+
+interface StylePreset {
+  id: number;
+  name: string;
+  style: Partial<CaptionStyle>;
+}
 
 interface UIState {
   // Video control
@@ -15,6 +22,9 @@ interface UIState {
   // View mode
   viewMode: 'edit' | 'frame' | 'timeline';
 
+  // Style presets
+  stylePresets: StylePreset[];
+
   // Actions
   setCurrentTime: (time: number) => void;
   setVideoDuration: (duration: number) => void;
@@ -25,6 +35,8 @@ interface UIState {
   setError: (error: string | null) => void;
   setViewMode: (mode: 'edit' | 'frame' | 'timeline') => void;
   skip: (seconds: number) => void;
+  saveStylePreset: (slot: number, name: string, style: Partial<CaptionStyle>) => void;
+  getStylePreset: (slot: number) => StylePreset | undefined;
 }
 
 export const useUIStore = create<UIState>((set, get) => ({
@@ -37,6 +49,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   loadingMessage: '',
   error: null,
   viewMode: 'edit',
+  stylePresets: [],
 
   // Actions
   setCurrentTime: (time) => {
@@ -77,5 +90,26 @@ export const useUIStore = create<UIState>((set, get) => ({
     const { currentTime, videoDuration } = get();
     const newTime = Math.max(0, Math.min(currentTime + seconds, videoDuration));
     set({ currentTime: newTime });
+  },
+
+  saveStylePreset: (slot, name, style) => {
+    set(state => {
+      const existingIndex = state.stylePresets.findIndex(p => p.id === slot);
+      const newPreset = { id: slot, name, style };
+
+      if (existingIndex >= 0) {
+        // Update existing preset
+        const newPresets = [...state.stylePresets];
+        newPresets[existingIndex] = newPreset;
+        return { stylePresets: newPresets };
+      } else {
+        // Add new preset
+        return { stylePresets: [...state.stylePresets, newPreset] };
+      }
+    });
+  },
+
+  getStylePreset: (slot) => {
+    return get().stylePresets.find(p => p.id === slot);
   },
 }));

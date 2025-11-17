@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Draggable from 'react-draggable';
 import { Caption } from '../types/caption.types';
 import { useCaptionStore } from '../stores/captionStore';
@@ -13,58 +14,109 @@ export default function CaptionOverlay({
   videoWidth,
   videoHeight
 }: CaptionOverlayProps) {
-  const { updateCaptionPosition, selectedCaptionIds, selectCaption } = useCaptionStore();
+  const { updateCaptionPosition, updateCaptionStyle, selectedCaptionIds, selectCaption } = useCaptionStore();
+  const [resizing, setResizing] = useState<string | null>(null);
+
+  // Reference size used when creating captions
+  const REFERENCE_WIDTH = 800;
+  const REFERENCE_HEIGHT = 450;
 
   return (
     <div className="absolute inset-0 pointer-events-none">
-      {captions.map(caption => (
-        <Draggable
-          key={caption.id}
-          position={{ x: caption.position.x, y: caption.position.y }}
-          onStop={(e, data) => {
-            updateCaptionPosition(caption.id, {
-              x: data.x,
-              y: data.y
-            });
-          }}
-          bounds="parent"
-        >
-          <div
-            className={`
-              absolute pointer-events-auto cursor-move
-              ${selectedCaptionIds.includes(caption.id) ? 'ring-2 ring-blue-500' : ''}
-            `}
-            onClick={(e) => {
-              e.stopPropagation();
-              // Multi-select with Shift, Ctrl, or Cmd (Mac)
-              const isMultiSelect = e.shiftKey || e.ctrlKey || e.metaKey;
-              selectCaption(caption.id, isMultiSelect);
+      {captions.map(caption => {
+        // Scale position from reference size to actual video size
+        const scaleX = videoWidth / REFERENCE_WIDTH;
+        const scaleY = videoHeight / REFERENCE_HEIGHT;
+
+        const scaledX = caption.position.x * scaleX;
+        const scaledY = caption.position.y * scaleY;
+
+        return (
+          <Draggable
+            key={caption.id}
+            position={{ x: scaledX, y: scaledY }}
+            onStop={(e, data) => {
+              // Store position in reference coordinates
+              updateCaptionPosition(caption.id, {
+                x: data.x / scaleX,
+                y: data.y / scaleY
+              });
             }}
-            style={{
-              fontSize: caption.style.fontSize,
-              fontFamily: caption.style.fontFamily,
-              color: caption.style.color,
-              fontWeight: caption.style.fontWeight,
-              textTransform: caption.style.textTransform,
-              letterSpacing: caption.style.letterSpacing,
-              textShadow: caption.style.textShadow || undefined,
-              transform: `rotate(${caption.style.rotation}deg)`,
-              WebkitTextStroke: caption.style.strokeWidth
-                ? `${caption.style.strokeWidth}px ${caption.style.strokeColor}`
-                : 'none',
-              backgroundColor: caption.style.backgroundColor
-                ? `${caption.style.backgroundColor}${Math.round(caption.style.backgroundOpacity * 255).toString(16).padStart(2, '0')}`
-                : 'transparent',
-              padding: caption.style.backgroundColor ? '8px 16px' : '0',
-              borderRadius: caption.style.backgroundColor ? '4px' : '0',
-              whiteSpace: 'nowrap',
-              zIndex: caption.zIndex,
-            }}
+            bounds="parent"
+            disabled={resizing === caption.id}
           >
-            {caption.word}
-          </div>
-        </Draggable>
-      ))}
+            <div
+              className={`
+                absolute pointer-events-auto cursor-move
+                ${selectedCaptionIds.includes(caption.id) ? 'ring-2 ring-blue-500' : ''}
+              `}
+              onClick={(e) => {
+                e.stopPropagation();
+                // Windows Explorer-style selection
+                if (e.shiftKey) {
+                  selectCaption(caption.id, 'range'); // Shift: Select range
+                } else if (e.ctrlKey || e.metaKey) {
+                  selectCaption(caption.id, 'toggle'); // Ctrl/Cmd: Toggle
+                } else {
+                  selectCaption(caption.id, 'single'); // Normal: Single select
+                }
+              }}
+              style={{
+                fontSize: caption.style.fontSize,
+                fontFamily: caption.style.fontFamily,
+                color: caption.style.color,
+                fontWeight: caption.style.fontWeight,
+                textTransform: caption.style.textTransform,
+                letterSpacing: caption.style.letterSpacing,
+                textShadow: caption.style.textShadow || undefined,
+                transform: `rotate(${caption.style.rotation}deg)`,
+                WebkitTextStroke: caption.style.strokeWidth
+                  ? `${caption.style.strokeWidth}px ${caption.style.strokeColor}`
+                  : 'none',
+                backgroundColor: caption.style.backgroundColor
+                  ? `${caption.style.backgroundColor}${Math.round(caption.style.backgroundOpacity * 255).toString(16).padStart(2, '0')}`
+                  : 'transparent',
+                padding: caption.style.backgroundColor ? '8px 16px' : '0',
+                borderRadius: caption.style.backgroundColor ? '4px' : '0',
+                whiteSpace: 'nowrap',
+                zIndex: caption.zIndex,
+                position: 'relative',
+              }}
+            >
+              {caption.word}
+
+              {/* Resize Handle */}
+              {selectedCaptionIds.includes(caption.id) && (
+                <div
+                  className="absolute bottom-0 right-0 w-3 h-3 bg-blue-500 cursor-nwse-resize rounded-full"
+                  style={{ transform: 'translate(50%, 50%)' }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    setResizing(caption.id);
+                    const startY = e.clientY;
+                    const startFontSize = caption.style.fontSize;
+
+                    const handleMouseMove = (moveEvent: MouseEvent) => {
+                      const deltaY = startY - moveEvent.clientY; // Inverted: up = increase
+                      const newFontSize = Math.max(12, Math.min(120, startFontSize + deltaY));
+                      updateCaptionStyle(caption.id, { fontSize: newFontSize });
+                    };
+
+                    const handleMouseUp = () => {
+                      setResizing(null);
+                      document.removeEventListener('mousemove', handleMouseMove);
+                      document.removeEventListener('mouseup', handleMouseUp);
+                    };
+
+                    document.addEventListener('mousemove', handleMouseMove);
+                    document.addEventListener('mouseup', handleMouseUp);
+                  }}
+                />
+              )}
+            </div>
+          </Draggable>
+        );
+      })}
     </div>
   );
 }
