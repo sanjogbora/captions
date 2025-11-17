@@ -47,8 +47,9 @@ export default function CaptionOverlay({
           >
             <div
               className={`
-                absolute pointer-events-auto cursor-move
+                absolute pointer-events-auto
                 ${selectedCaptionIds.includes(caption.id) ? 'ring-2 ring-blue-500' : ''}
+                ${resizing === caption.id ? 'cursor-nwse-resize' : 'cursor-move'}
               `}
               onClick={(e) => {
                 e.stopPropagation();
@@ -80,7 +81,9 @@ export default function CaptionOverlay({
                 borderRadius: caption.style.backgroundColor ? '4px' : '0',
                 whiteSpace: 'nowrap',
                 zIndex: caption.zIndex,
-                position: 'relative',
+                display: 'inline-block',
+                width: 'auto',
+                maxWidth: 'none',
               }}
             >
               {caption.word}
@@ -88,15 +91,21 @@ export default function CaptionOverlay({
               {/* Resize Handle */}
               {selectedCaptionIds.includes(caption.id) && (
                 <div
-                  className="absolute bottom-0 right-0 w-3 h-3 bg-blue-500 cursor-nwse-resize rounded-full"
-                  style={{ transform: 'translate(50%, 50%)' }}
+                  className="absolute w-3 h-3 bg-blue-500 cursor-nwse-resize rounded-full"
+                  style={{
+                    bottom: '-6px',
+                    right: '-6px',
+                    pointerEvents: 'auto'
+                  }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     setResizing(caption.id);
                     const startY = e.clientY;
                     const startFontSize = caption.style.fontSize;
 
                     const handleMouseMove = (moveEvent: MouseEvent) => {
+                      moveEvent.preventDefault();
                       const deltaY = startY - moveEvent.clientY; // Inverted: up = increase
                       const newFontSize = Math.max(12, Math.min(120, startFontSize + deltaY));
                       updateCaptionStyle(caption.id, { fontSize: newFontSize });
