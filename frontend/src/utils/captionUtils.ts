@@ -28,10 +28,14 @@ export function getDefaultCaptionPosition(
   videoHeight: number,
   textSize: Size
 ): Position {
-  // Default: bottom-center
+  // Default: bottom-center with safe positioning
+  // Position captions in the lower third of the video
+  const x = (videoWidth - textSize.width) / 2;
+  const y = videoHeight * 0.75; // 75% down from top (lower third)
+
   return {
-    x: (videoWidth - textSize.width) / 2,
-    y: videoHeight - textSize.height - 50, // 50px from bottom
+    x: Math.max(10, x), // At least 10px from left edge
+    y: Math.max(10, y), // At least 10px from top
     alignment: 'center'
   };
 }

@@ -40,12 +40,9 @@ export default function TranscriptPanel() {
                   // Jump to this word's time
                   setCurrentTime(caption.startTime);
 
-                  // Select the word
-                  if (e.shiftKey) {
-                    selectCaption(caption.id, true);
-                  } else {
-                    selectCaption(caption.id, false);
-                  }
+                  // Select the word (multi-select with Shift, Ctrl, or Cmd)
+                  const isMultiSelect = e.shiftKey || e.ctrlKey || e.metaKey;
+                  selectCaption(caption.id, isMultiSelect);
                 }}
               >
                 <div className="flex items-center justify-between">

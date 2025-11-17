@@ -36,11 +36,9 @@ export default function CaptionOverlay({
             `}
             onClick={(e) => {
               e.stopPropagation();
-              if (e.shiftKey) {
-                selectCaption(caption.id, true); // Multi-select
-              } else {
-                selectCaption(caption.id, false); // Single select
-              }
+              // Multi-select with Shift, Ctrl, or Cmd (Mac)
+              const isMultiSelect = e.shiftKey || e.ctrlKey || e.metaKey;
+              selectCaption(caption.id, isMultiSelect);
             }}
             style={{
               fontSize: caption.style.fontSize,

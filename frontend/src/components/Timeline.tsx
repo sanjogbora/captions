@@ -9,11 +9,11 @@ export default function Timeline() {
   const { currentTime, videoDuration, setCurrentTime } = useUIStore();
 
   const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!timelineRef.current) return;
+    if (!timelineRef.current || videoDuration === 0) return;
 
     const rect = timelineRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const percentage = x / rect.width;
+    const percentage = Math.max(0, Math.min(1, x / rect.width));
     const newTime = percentage * videoDuration;
 
     setCurrentTime(newTime);
@@ -28,7 +28,7 @@ export default function Timeline() {
         onClick={handleTimelineClick}
       >
         {/* Caption Markers */}
-        {captions.map(caption => {
+        {videoDuration > 0 && captions.map(caption => {
           const left = (caption.startTime / videoDuration) * 100;
           const width = ((caption.endTime - caption.startTime) / videoDuration) * 100;
 
@@ -46,14 +46,16 @@ export default function Timeline() {
         })}
 
         {/* Playhead */}
-        <div
-          className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none"
-          style={{
-            left: `${(currentTime / videoDuration) * 100}%`,
-          }}
-        >
-          <div className="absolute top-0 -translate-x-1/2 w-3 h-3 bg-red-500 rounded-full" />
-        </div>
+        {videoDuration > 0 && (
+          <div
+            className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none"
+            style={{
+              left: `${(currentTime / videoDuration) * 100}%`,
+            }}
+          >
+            <div className="absolute top-0 -translate-x-1/2 w-3 h-3 bg-red-500 rounded-full" />
+          </div>
+        )}
       </div>
 
       {/* Time Display */}

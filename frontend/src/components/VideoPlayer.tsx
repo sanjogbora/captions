@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import ReactPlayer from 'react-player';
 import CaptionOverlay from './CaptionOverlay';
 import { useCaptionStore } from '../stores/captionStore';
@@ -7,6 +7,8 @@ import { useUIStore } from '../stores/uiStore';
 export default function VideoPlayer() {
   const playerRef = useRef<ReactPlayer>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastUpdateRef = useRef<number>(0);
+  const isSeeking = useRef<boolean>(false);
 
   const { currentTime, isPlaying, setCurrentTime, setIsPlaying, videoUrl } = useUIStore();
   const { visibleCaptions } = useCaptionStore();
@@ -14,10 +16,27 @@ export default function VideoPlayer() {
   // Get captions that should be visible at current time
   const activeCaptions = visibleCaptions(currentTime);
 
+  // Throttled progress handler to reduce re-renders
+  const handleProgress = useCallback((state: { playedSeconds: number }) => {
+    if (isSeeking.current) return; // Don't update during seek
+
+    const now = Date.now();
+    // Only update state every 100ms to reduce lag
+    if (now - lastUpdateRef.current > 100) {
+      setCurrentTime(state.playedSeconds);
+      lastUpdateRef.current = now;
+    }
+  }, [setCurrentTime]);
+
   useEffect(() => {
-    // Seek player when currentTime changes externally
-    if (playerRef.current) {
+    // Seek player when currentTime changes externally (e.g., timeline click)
+    // Only seek if the difference is significant (> 0.5 seconds)
+    if (playerRef.current && Math.abs(playerRef.current.getCurrentTime() - currentTime) > 0.5) {
+      isSeeking.current = true;
       playerRef.current.seekTo(currentTime, 'seconds');
+      setTimeout(() => {
+        isSeeking.current = false;
+      }, 100);
     }
   }, [currentTime]);
 
@@ -43,12 +62,13 @@ export default function VideoPlayer() {
           ref={playerRef}
           url={videoUrl}
           playing={isPlaying}
-          onProgress={({ playedSeconds }) => setCurrentTime(playedSeconds)}
+          onProgress={handleProgress}
           onDuration={(duration) => useUIStore.getState().setVideoDuration(duration)}
           onEnded={() => setIsPlaying(false)}
           width="100%"
           height="100%"
           controls={false}
+          progressInterval={100}
         />
 
         {/* Caption Overlay */}

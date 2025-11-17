@@ -72,13 +72,17 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
       const transcribeData = await transcribeResponse.json();
 
       // Create captions from transcript
+      // Use a standard reference size that works for most video players
+      const referenceWidth = 800;
+      const referenceHeight = 450; // 16:9 aspect ratio
+
       const captions = transcribeData.words.map((word: any) =>
         createCaptionFromWord(
           word.word,
           word.start,
           word.end,
-          1920,
-          1080,
+          referenceWidth,
+          referenceHeight,
           uuidv4()
         )
       );
