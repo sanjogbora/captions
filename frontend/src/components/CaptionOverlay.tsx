@@ -64,7 +64,7 @@ export default function CaptionOverlay({
           <Draggable
             key={caption.id}
             position={{ x: scaledX, y: scaledY }}
-            onStop={(e, data) => {
+            onStop={(_e, data) => {
               // Constrain to bounds before storing
               const constrainedX = Math.max(0, Math.min(data.x, bounds.right));
               const constrainedY = Math.max(0, Math.min(data.y, bounds.bottom));

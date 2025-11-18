@@ -15,7 +15,6 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [progressStage, setProgressStage] = useState<ProgressStage>('idle');
-  const [uploadProgress, setUploadProgress] = useState(0);
   const { setVideoUrl, setLoading, setError } = useUIStore();
   const { setCaptions } = useCaptionStore();
 
@@ -168,7 +167,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
             <div className="flex items-center gap-3">
               {progressStage === 'uploading' ? (
                 <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-              ) : progressStage !== 'idle' ? (
+              ) : (progressStage === 'transcribing' || progressStage === 'processing' || progressStage === 'done') ? (
                 <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>
               ) : (
                 <div className="w-5 h-5 border-2 border-gray-600 rounded-full" />

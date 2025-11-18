@@ -6,14 +6,19 @@ import { formatTimeSimple } from '../utils/captionUtils';
 export default function Timeline() {
   const timelineRef = useRef<HTMLDivElement>(null);
   const { captions, selectedCaptionIds, updateCaptionTiming, saveToHistory } = useCaptionStore();
-  const { currentTime, videoDuration, setCurrentTime } = useUIStore();
+  const { currentTime, videoDuration, setCurrentTime, timelineZoom, setTimelineZoom } = useUIStore();
   const [dragging, setDragging] = useState<{ id: string; type: 'start' | 'end' | 'move'; initialTime: number } | null>(null);
+
+  // Calculate visible time window based on zoom
+  const visibleDuration = videoDuration / timelineZoom;
+  const timelineStart = Math.max(0, Math.min(currentTime - visibleDuration / 2, videoDuration - visibleDuration));
+  const timelineEnd = timelineStart + visibleDuration;
 
   const pixelToTime = (pixelX: number): number => {
     if (!timelineRef.current) return 0;
     const rect = timelineRef.current.getBoundingClientRect();
     const percentage = Math.max(0, Math.min(1, pixelX / rect.width));
-    return percentage * videoDuration;
+    return timelineStart + (percentage * visibleDuration);
   };
 
   const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -73,6 +78,33 @@ export default function Timeline() {
 
   return (
     <div className="bg-gray-900 p-4">
+      {/* Zoom Controls */}
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-xs text-gray-400">Zoom:</span>
+        <button
+          onClick={() => setTimelineZoom(timelineZoom / 1.5)}
+          className="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
+          title="Zoom out"
+        >
+          −
+        </button>
+        <span className="text-xs text-gray-400 w-12 text-center">{timelineZoom.toFixed(1)}x</span>
+        <button
+          onClick={() => setTimelineZoom(timelineZoom * 1.5)}
+          className="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
+          title="Zoom in"
+        >
+          +
+        </button>
+        <button
+          onClick={() => setTimelineZoom(1)}
+          className="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors ml-2"
+          title="Reset zoom"
+        >
+          Reset
+        </button>
+      </div>
+
       {/* Timeline Bar */}
       <div
         ref={timelineRef}
@@ -84,8 +116,13 @@ export default function Timeline() {
       >
         {/* Caption Markers */}
         {videoDuration > 0 && captions.map(caption => {
-          const left = (caption.startTime / videoDuration) * 100;
-          const width = ((caption.endTime - caption.startTime) / videoDuration) * 100;
+          // Only show captions within visible time window
+          if (caption.endTime < timelineStart || caption.startTime > timelineEnd) {
+            return null;
+          }
+
+          const left = ((caption.startTime - timelineStart) / visibleDuration) * 100;
+          const width = ((caption.endTime - caption.startTime) / visibleDuration) * 100;
           const isSelected = selectedCaptionIds.includes(caption.id);
 
           return (
@@ -128,11 +165,11 @@ export default function Timeline() {
         })}
 
         {/* Playhead */}
-        {videoDuration > 0 && (
+        {videoDuration > 0 && currentTime >= timelineStart && currentTime <= timelineEnd && (
           <div
             className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none"
             style={{
-              left: `${(currentTime / videoDuration) * 100}%`,
+              left: `${((currentTime - timelineStart) / visibleDuration) * 100}%`,
             }}
           >
             <div className="absolute top-0 -translate-x-1/2 w-3 h-3 bg-red-500 rounded-full" />
@@ -142,8 +179,9 @@ export default function Timeline() {
 
       {/* Time Display */}
       <div className="flex justify-between mt-2 text-sm text-gray-400">
+        <span>{formatTimeSimple(timelineStart)}</span>
         <span>{formatTimeSimple(currentTime)}</span>
-        <span>{formatTimeSimple(videoDuration)}</span>
+        <span>{formatTimeSimple(timelineEnd)}</span>
       </div>
     </div>
   );

@@ -16,11 +16,12 @@ export function useKeyboardShortcuts() {
     selectCaption,
     areSelectedCaptionsAdjacent,
     updateCaptionStyle,
-    updateCaptionTiming
+    updateCaptionTiming,
+    updateCaptionPosition
   } = useCaptionStore();
 
   const { togglePlay } = useVideoControl();
-  const { currentTime, setCurrentTime, getStylePreset, isTargetMode, setTargetMode } = useUIStore();
+  const { currentTime, setCurrentTime, getStylePreset, isTargetMode, setTargetMode, isClickToPlaceMode, clickToPlaceIndex, setClickToPlaceIndex, pendingPlacement, setPendingPlacement, setClickToPlaceMode } = useUIStore();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -86,7 +87,36 @@ export function useKeyboardShortcuts() {
         e.preventDefault();
         const slot = parseInt(e.key);
         const preset = getStylePreset(slot);
-        if (preset && selectedCaptionIds.length > 0) {
+
+        // Priority 1: Click-to-place mode with pending placement
+        if (isClickToPlaceMode && pendingPlacement && captions[clickToPlaceIndex]) {
+          const currentCaption = captions[clickToPlaceIndex];
+
+          // Apply style preset if available
+          if (preset) {
+            updateCaptionStyle(currentCaption.id, preset.style);
+          }
+
+          // Update position (pendingPlacement is already in reference coordinates)
+          updateCaptionPosition(currentCaption.id, {
+            x: pendingPlacement.x,
+            y: pendingPlacement.y
+          });
+
+          // Clear pending placement
+          setPendingPlacement(null);
+
+          // Move to next word
+          const nextIndex = clickToPlaceIndex + 1;
+          if (nextIndex >= captions.length) {
+            // All words placed, exit mode
+            setClickToPlaceMode(false);
+          } else {
+            setClickToPlaceIndex(nextIndex);
+          }
+        }
+        // Priority 2: Apply to selected captions (normal mode)
+        else if (preset && selectedCaptionIds.length > 0) {
           selectedCaptionIds.forEach(id => {
             updateCaptionStyle(id, preset.style);
           });
@@ -101,10 +131,16 @@ export function useKeyboardShortcuts() {
         }
       }
 
-      // Escape: Cancel target mode
-      if (e.key === 'Escape' && isTargetMode) {
+      // Escape: Cancel target mode or click-to-place mode
+      if (e.key === 'Escape') {
         e.preventDefault();
-        setTargetMode(false);
+        if (isTargetMode) {
+          setTargetMode(false);
+        }
+        if (isClickToPlaceMode) {
+          setClickToPlaceMode(false);
+          setPendingPlacement(null);
+        }
       }
 
       // Shift+D: Extend selected words to end of last selected word
@@ -171,8 +207,15 @@ export function useKeyboardShortcuts() {
     areSelectedCaptionsAdjacent,
     updateCaptionStyle,
     updateCaptionTiming,
+    updateCaptionPosition,
     getStylePreset,
     isTargetMode,
-    setTargetMode
+    setTargetMode,
+    isClickToPlaceMode,
+    clickToPlaceIndex,
+    setClickToPlaceIndex,
+    pendingPlacement,
+    setPendingPlacement,
+    setClickToPlaceMode
   ]);
 }

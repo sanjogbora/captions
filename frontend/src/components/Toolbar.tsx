@@ -4,8 +4,8 @@ import { useUIStore } from '../stores/uiStore';
 
 export default function Toolbar() {
   const { isPlaying, togglePlay, exportVideo } = useVideoControl();
-  const { undo, redo, canUndo, canRedo } = useCaptionStore();
-  const { setLoading } = useUIStore();
+  const { undo, redo, canUndo, canRedo, captions } = useCaptionStore();
+  const { setLoading, isClickToPlaceMode, setClickToPlaceMode, clickToPlaceIndex } = useUIStore();
 
   const handleExport = async () => {
     setLoading(true, 'Exporting video...');
@@ -33,6 +33,23 @@ export default function Toolbar() {
             {isPlaying ? 'Pause' : 'Play'}
           </button>
           <span className="text-gray-400 text-sm">Space</span>
+        </div>
+
+        {/* Click-to-Place Mode */}
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setClickToPlaceMode(!isClickToPlaceMode)}
+            className={`px-4 py-2 rounded text-white font-medium transition-colors ${
+              isClickToPlaceMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-700 hover:bg-gray-600'
+            }`}
+          >
+            {isClickToPlaceMode ? `Quick Place (${clickToPlaceIndex + 1}/${captions.length})` : 'Quick Place Mode'}
+          </button>
+          {isClickToPlaceMode && (
+            <span className="text-yellow-400 text-sm animate-pulse">
+              Click video, press 1-9
+            </span>
+          )}
         </div>
       </div>
 

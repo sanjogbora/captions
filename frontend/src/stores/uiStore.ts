@@ -23,9 +23,13 @@ interface UIState {
   // View mode
   viewMode: 'edit' | 'frame' | 'timeline';
   transcriptMode: 'word' | 'sentence'; // Word-by-word or sentence view
+  timelineZoom: number; // Timeline zoom level (1 = normal, 2 = 2x zoomed in)
 
   // Interaction modes
   isTargetMode: boolean; // For "extend until word X" feature
+  isClickToPlaceMode: boolean; // For click-to-place mode
+  clickToPlaceIndex: number; // Current word index in click-to-place mode
+  pendingPlacement: { x: number; y: number } | null; // Waiting for style key after click
 
   // Style presets
   stylePresets: StylePreset[];
@@ -41,6 +45,10 @@ interface UIState {
   setViewMode: (mode: 'edit' | 'frame' | 'timeline') => void;
   setTranscriptMode: (mode: 'word' | 'sentence') => void;
   setTargetMode: (enabled: boolean) => void;
+  setTimelineZoom: (zoom: number) => void;
+  setClickToPlaceMode: (enabled: boolean) => void;
+  setClickToPlaceIndex: (index: number) => void;
+  setPendingPlacement: (position: { x: number; y: number } | null) => void;
   skip: (seconds: number) => void;
   saveStylePreset: (slot: number, name: string, style: Partial<CaptionStyle>) => void;
   getStylePreset: (slot: number) => StylePreset | undefined;
@@ -59,7 +67,11 @@ export const useUIStore = create<UIState>()(
       error: null,
       viewMode: 'edit',
       transcriptMode: 'word',
+      timelineZoom: 1,
       isTargetMode: false,
+      isClickToPlaceMode: false,
+      clickToPlaceIndex: 0,
+      pendingPlacement: null,
       stylePresets: [],
 
   // Actions
@@ -105,6 +117,26 @@ export const useUIStore = create<UIState>()(
     set({ isTargetMode: enabled });
   },
 
+  setTimelineZoom: (zoom) => {
+    set({ timelineZoom: Math.max(0.5, Math.min(zoom, 10)) }); // Clamp between 0.5x and 10x
+  },
+
+  setClickToPlaceMode: (enabled) => {
+    set({
+      isClickToPlaceMode: enabled,
+      clickToPlaceIndex: enabled ? 0 : 0,
+      pendingPlacement: null
+    });
+  },
+
+  setClickToPlaceIndex: (index) => {
+    set({ clickToPlaceIndex: index });
+  },
+
+  setPendingPlacement: (position) => {
+    set({ pendingPlacement: position });
+  },
+
   skip: (seconds) => {
     const { currentTime, videoDuration } = get();
     const newTime = Math.max(0, Math.min(currentTime + seconds, videoDuration));
@@ -135,7 +167,6 @@ export const useUIStore = create<UIState>()(
     {
       name: 'fastcaption-ui-storage',
       storage: createJSONStorage(() => localStorage),
-      partialPersist: true,
       partialize: (state) => ({ stylePresets: state.stylePresets }),
     }
   )
