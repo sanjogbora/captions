@@ -32,14 +32,11 @@ export default function TranscriptPanel() {
                 key={caption.id}
                 className={`
                   p-2 rounded cursor-pointer transition-colors
-                  ${isActive ? 'bg-blue-600' : ''}
-                  ${isSelected ? 'ring-2 ring-blue-400' : ''}
+                  ${isActive && !isSelected ? 'bg-blue-900/40' : ''}
+                  ${isSelected ? 'bg-blue-600 ring-2 ring-blue-400' : ''}
                   ${!isActive && !isSelected ? 'hover:bg-gray-800' : ''}
                 `}
                 onClick={(e) => {
-                  // Jump to this word's time
-                  setCurrentTime(caption.startTime);
-
                   // Determine selection mode
                   let mode: 'single' | 'toggle' | 'range' = 'single';
                   if (e.shiftKey) {
@@ -50,6 +47,9 @@ export default function TranscriptPanel() {
 
                   // Select the word with the appropriate mode
                   selectCaption(caption.id, mode);
+
+                  // Jump to this word's time (after selection to avoid confusion)
+                  setCurrentTime(caption.startTime);
                 }}
               >
                 <div className="flex items-center justify-between">

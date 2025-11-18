@@ -22,7 +22,7 @@ export default function CaptionOverlay({
   const REFERENCE_HEIGHT = 450;
 
   return (
-    <div className="absolute inset-0 pointer-events-none">
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
       {captions.map(caption => {
         // Scale position from reference size to actual video size
         const scaleX = videoWidth / REFERENCE_WIDTH;
@@ -31,18 +31,34 @@ export default function CaptionOverlay({
         const scaledX = caption.position.x * scaleX;
         const scaledY = caption.position.y * scaleY;
 
+        // Estimate caption rendered size (approximate)
+        const estimatedWidth = caption.word.length * caption.style.fontSize * 0.6;
+        const estimatedHeight = caption.style.fontSize * 1.2;
+
+        // Calculate bounds in reference coordinates to prevent captions from going outside
+        const bounds = {
+          left: 0,
+          top: 0,
+          right: videoWidth - estimatedWidth,
+          bottom: videoHeight - estimatedHeight
+        };
+
         return (
           <Draggable
             key={caption.id}
             position={{ x: scaledX, y: scaledY }}
             onStop={(e, data) => {
+              // Constrain to bounds before storing
+              const constrainedX = Math.max(0, Math.min(data.x, videoWidth - estimatedWidth));
+              const constrainedY = Math.max(0, Math.min(data.y, videoHeight - estimatedHeight));
+
               // Store position in reference coordinates
               updateCaptionPosition(caption.id, {
-                x: data.x / scaleX,
-                y: data.y / scaleY
+                x: constrainedX / scaleX,
+                y: constrainedY / scaleY
               });
             }}
-            bounds="parent"
+            bounds={bounds}
             disabled={resizing === caption.id}
           >
             <div

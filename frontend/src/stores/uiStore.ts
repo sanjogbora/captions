@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { CaptionStyle } from '../types/caption.types';
 
 interface StylePreset {
@@ -39,17 +40,19 @@ interface UIState {
   getStylePreset: (slot: number) => StylePreset | undefined;
 }
 
-export const useUIStore = create<UIState>((set, get) => ({
-  // Initial state
-  currentTime: 0,
-  videoDuration: 0,
-  isPlaying: false,
-  videoUrl: null,
-  isLoading: false,
-  loadingMessage: '',
-  error: null,
-  viewMode: 'edit',
-  stylePresets: [],
+export const useUIStore = create<UIState>()(
+  persist(
+    (set, get) => ({
+      // Initial state
+      currentTime: 0,
+      videoDuration: 0,
+      isPlaying: false,
+      videoUrl: null,
+      isLoading: false,
+      loadingMessage: '',
+      error: null,
+      viewMode: 'edit',
+      stylePresets: [],
 
   // Actions
   setCurrentTime: (time) => {
@@ -112,4 +115,12 @@ export const useUIStore = create<UIState>((set, get) => ({
   getStylePreset: (slot) => {
     return get().stylePresets.find(p => p.id === slot);
   },
-}));
+    }),
+    {
+      name: 'fastcaption-ui-storage',
+      storage: createJSONStorage(() => localStorage),
+      partialPersist: true,
+      partialize: (state) => ({ stylePresets: state.stylePresets }),
+    }
+  )
+);
