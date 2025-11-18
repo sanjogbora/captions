@@ -10,11 +10,13 @@ export default function VideoPlayer() {
   const lastUpdateRef = useRef<number>(0);
   const isSeeking = useRef<boolean>(false);
 
-  const { currentTime, isPlaying, setCurrentTime, setIsPlaying, videoUrl } = useUIStore();
-  const { visibleCaptions } = useCaptionStore();
+  const { currentTime, isPlaying, setCurrentTime, setIsPlaying, videoUrl, transcriptMode } = useUIStore();
+  const { visibleCaptions, getVisibleCaptionsInSentenceMode } = useCaptionStore();
 
   // Get captions that should be visible at current time
-  const activeCaptions = visibleCaptions(currentTime);
+  const activeCaptions = transcriptMode === 'sentence'
+    ? getVisibleCaptionsInSentenceMode(currentTime)
+    : visibleCaptions(currentTime);
 
   // Throttled progress handler to reduce re-renders
   const handleProgress = useCallback((state: { playedSeconds: number }) => {

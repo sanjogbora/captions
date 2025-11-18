@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Caption, CaptionStyle } from '../types/caption.types';
+import { groupCaptionsIntoSentences } from '../utils/captionUtils';
 import { v4 as uuidv4 } from 'uuid';
 
 interface CaptionState {
@@ -12,6 +13,7 @@ interface CaptionState {
 
   // Computed
   visibleCaptions: (currentTime: number) => Caption[];
+  getVisibleCaptionsInSentenceMode: (currentTime: number) => Caption[];
   getSelectedCaptions: () => Caption[];
   areSelectedCaptionsAdjacent: () => boolean;
 
@@ -47,6 +49,19 @@ export const useCaptionStore = create<CaptionState>((set, get) => ({
     return get().captions.filter(
       caption => currentTime >= caption.startTime && currentTime <= caption.endTime
     );
+  },
+
+  getVisibleCaptionsInSentenceMode: (currentTime: number) => {
+    const { captions } = get();
+    const sentences = groupCaptionsIntoSentences(captions);
+
+    // Find the active sentence (where currentTime is within sentence bounds)
+    const activeSentence = sentences.find(
+      s => currentTime >= s.startTime && currentTime <= s.endTime
+    );
+
+    // Return all captions in the active sentence
+    return activeSentence ? activeSentence.captions : [];
   },
 
   getSelectedCaptions: () => {

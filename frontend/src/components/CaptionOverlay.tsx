@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Draggable from 'react-draggable';
 import { Caption } from '../types/caption.types';
 import { useCaptionStore } from '../stores/captionStore';
@@ -18,10 +18,24 @@ export default function CaptionOverlay({
   const { updateCaptionPosition, updateCaptionStyle, selectedCaptionIds, selectCaption, extendSelectedCaptionsToTarget } = useCaptionStore();
   const { isTargetMode, setTargetMode } = useUIStore();
   const [resizing, setResizing] = useState<string | null>(null);
+  const [captionSizes, setCaptionSizes] = useState<Map<string, { width: number; height: number }>>(new Map());
+  const captionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // Reference size used when creating captions
   const REFERENCE_WIDTH = 800;
   const REFERENCE_HEIGHT = 450;
+
+  // Measure actual caption sizes after render
+  useEffect(() => {
+    const newSizes = new Map<string, { width: number; height: number }>();
+    captionRefs.current.forEach((element, id) => {
+      if (element) {
+        const rect = element.getBoundingClientRect();
+        newSizes.set(id, { width: rect.width, height: rect.height });
+      }
+    });
+    setCaptionSizes(newSizes);
+  }, [captions, videoWidth, videoHeight]); // Remeasure when captions or video size changes
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -33,16 +47,17 @@ export default function CaptionOverlay({
         const scaledX = caption.position.x * scaleX;
         const scaledY = caption.position.y * scaleY;
 
-        // Estimate caption rendered size (approximate)
-        const estimatedWidth = caption.word.length * caption.style.fontSize * 0.6;
-        const estimatedHeight = caption.style.fontSize * 1.2;
+        // Use measured size if available, otherwise estimate
+        const measuredSize = captionSizes.get(caption.id);
+        const captionWidth = measuredSize?.width || caption.word.length * caption.style.fontSize * 0.6;
+        const captionHeight = measuredSize?.height || caption.style.fontSize * 1.2;
 
-        // Calculate bounds in reference coordinates to prevent captions from going outside
+        // Calculate bounds to prevent captions from going outside
         const bounds = {
           left: 0,
           top: 0,
-          right: videoWidth - estimatedWidth,
-          bottom: videoHeight - estimatedHeight
+          right: Math.max(0, videoWidth - captionWidth),
+          bottom: Math.max(0, videoHeight - captionHeight)
         };
 
         return (
@@ -51,8 +66,8 @@ export default function CaptionOverlay({
             position={{ x: scaledX, y: scaledY }}
             onStop={(e, data) => {
               // Constrain to bounds before storing
-              const constrainedX = Math.max(0, Math.min(data.x, videoWidth - estimatedWidth));
-              const constrainedY = Math.max(0, Math.min(data.y, videoHeight - estimatedHeight));
+              const constrainedX = Math.max(0, Math.min(data.x, bounds.right));
+              const constrainedY = Math.max(0, Math.min(data.y, bounds.bottom));
 
               // Store position in reference coordinates
               updateCaptionPosition(caption.id, {
@@ -64,6 +79,13 @@ export default function CaptionOverlay({
             disabled={resizing === caption.id}
           >
             <div
+              ref={(el) => {
+                if (el) {
+                  captionRefs.current.set(caption.id, el);
+                } else {
+                  captionRefs.current.delete(caption.id);
+                }
+              }}
               className={`
                 absolute pointer-events-auto
                 ${selectedCaptionIds.includes(caption.id) ? 'ring-2 ring-blue-500' : ''}
