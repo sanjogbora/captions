@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Draggable from 'react-draggable';
 import { Caption } from '../types/caption.types';
 import { useCaptionStore } from '../stores/captionStore';
+import { useUIStore } from '../stores/uiStore';
 
 interface CaptionOverlayProps {
   captions: Caption[];
@@ -14,7 +15,8 @@ export default function CaptionOverlay({
   videoWidth,
   videoHeight
 }: CaptionOverlayProps) {
-  const { updateCaptionPosition, updateCaptionStyle, selectedCaptionIds, selectCaption } = useCaptionStore();
+  const { updateCaptionPosition, updateCaptionStyle, selectedCaptionIds, selectCaption, extendSelectedCaptionsToTarget } = useCaptionStore();
+  const { isTargetMode, setTargetMode } = useUIStore();
   const [resizing, setResizing] = useState<string | null>(null);
 
   // Reference size used when creating captions
@@ -65,10 +67,18 @@ export default function CaptionOverlay({
               className={`
                 absolute pointer-events-auto
                 ${selectedCaptionIds.includes(caption.id) ? 'ring-2 ring-blue-500' : ''}
-                ${resizing === caption.id ? 'cursor-nwse-resize' : 'cursor-move'}
+                ${isTargetMode ? 'cursor-crosshair' : resizing === caption.id ? 'cursor-nwse-resize' : 'cursor-move'}
               `}
               onClick={(e) => {
                 e.stopPropagation();
+
+                // Handle target mode
+                if (isTargetMode) {
+                  extendSelectedCaptionsToTarget(caption.id);
+                  setTargetMode(false);
+                  return;
+                }
+
                 // Windows Explorer-style selection
                 if (e.shiftKey) {
                   selectCaption(caption.id, 'range'); // Shift: Select range

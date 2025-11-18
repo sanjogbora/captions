@@ -21,6 +21,7 @@ interface CaptionState {
   updateCaptionPosition: (id: string, position: Partial<Caption['position']>) => void;
   updateCaptionStyle: (id: string, style: Partial<CaptionStyle>) => void;
   updateCaptionTiming: (id: string, startTime?: number, endTime?: number) => void;
+  extendSelectedCaptionsToTarget: (targetId: string) => void;
   selectCaption: (id: string, mode: 'single' | 'toggle' | 'range') => void;
   deselectAll: () => void;
   groupSelectedCaptions: () => void;
@@ -133,6 +134,22 @@ export const useCaptionStore = create<CaptionState>((set, get) => ({
               ...(startTime !== undefined && { startTime }),
               ...(endTime !== undefined && { endTime })
             }
+          : caption
+      )
+    }));
+    get().saveToHistory();
+  },
+
+  extendSelectedCaptionsToTarget: (targetId) => {
+    const { captions, selectedCaptionIds } = get();
+    const targetCaption = captions.find(c => c.id === targetId);
+
+    if (!targetCaption || selectedCaptionIds.length === 0) return;
+
+    set(state => ({
+      captions: state.captions.map(caption =>
+        state.selectedCaptionIds.includes(caption.id)
+          ? { ...caption, endTime: targetCaption.endTime }
           : caption
       )
     }));

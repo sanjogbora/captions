@@ -64,3 +64,45 @@ export function createCaptionFromWord(
     zIndex: 1,
   };
 }
+
+export interface Sentence {
+  id: string;
+  text: string;
+  captions: Caption[];
+  startTime: number;
+  endTime: number;
+}
+
+export function groupCaptionsIntoSentences(captions: Caption[]): Sentence[] {
+  const sentences: Sentence[] = [];
+  let currentSentence: Caption[] = [];
+
+  captions.forEach((caption, index) => {
+    currentSentence.push(caption);
+
+    // Check if this word ends a sentence
+    const endsWithPunctuation = /[.!?]$/.test(caption.word.trim());
+    const nextCaption = captions[index + 1];
+    const hasLongPause = nextCaption && (nextCaption.startTime - caption.endTime) > 0.5; // 500ms pause
+    const isLastWord = index === captions.length - 1;
+
+    if (endsWithPunctuation || hasLongPause || isLastWord) {
+      // Create sentence from current group
+      const text = currentSentence.map(c => c.word).join(' ');
+      const startTime = currentSentence[0].startTime;
+      const endTime = currentSentence[currentSentence.length - 1].endTime;
+
+      sentences.push({
+        id: `sentence-${sentences.length}`,
+        text,
+        captions: [...currentSentence],
+        startTime,
+        endTime
+      });
+
+      currentSentence = [];
+    }
+  });
+
+  return sentences;
+}

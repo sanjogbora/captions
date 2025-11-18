@@ -22,6 +22,10 @@ interface UIState {
 
   // View mode
   viewMode: 'edit' | 'frame' | 'timeline';
+  transcriptMode: 'word' | 'sentence'; // Word-by-word or sentence view
+
+  // Interaction modes
+  isTargetMode: boolean; // For "extend until word X" feature
 
   // Style presets
   stylePresets: StylePreset[];
@@ -35,6 +39,8 @@ interface UIState {
   setLoading: (loading: boolean, message?: string) => void;
   setError: (error: string | null) => void;
   setViewMode: (mode: 'edit' | 'frame' | 'timeline') => void;
+  setTranscriptMode: (mode: 'word' | 'sentence') => void;
+  setTargetMode: (enabled: boolean) => void;
   skip: (seconds: number) => void;
   saveStylePreset: (slot: number, name: string, style: Partial<CaptionStyle>) => void;
   getStylePreset: (slot: number) => StylePreset | undefined;
@@ -52,6 +58,8 @@ export const useUIStore = create<UIState>()(
       loadingMessage: '',
       error: null,
       viewMode: 'edit',
+      transcriptMode: 'word',
+      isTargetMode: false,
       stylePresets: [],
 
   // Actions
@@ -87,6 +95,14 @@ export const useUIStore = create<UIState>()(
 
   setViewMode: (mode) => {
     set({ viewMode: mode });
+  },
+
+  setTranscriptMode: (mode) => {
+    set({ transcriptMode: mode });
+  },
+
+  setTargetMode: (enabled) => {
+    set({ isTargetMode: enabled });
   },
 
   skip: (seconds) => {

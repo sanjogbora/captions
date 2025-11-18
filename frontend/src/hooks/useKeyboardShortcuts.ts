@@ -19,7 +19,7 @@ export function useKeyboardShortcuts() {
   } = useCaptionStore();
 
   const { togglePlay } = useVideoControl();
-  const { currentTime, setCurrentTime, getStylePreset } = useUIStore();
+  const { currentTime, setCurrentTime, getStylePreset, isTargetMode, setTargetMode } = useUIStore();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -91,6 +91,20 @@ export function useKeyboardShortcuts() {
           });
         }
       }
+
+      // 'E' key: Enter/Exit target mode for "extend until word X"
+      if (e.key.toLowerCase() === 'e' && !cmdOrCtrl && !e.shiftKey) {
+        e.preventDefault();
+        if (selectedCaptionIds.length > 0) {
+          setTargetMode(!isTargetMode);
+        }
+      }
+
+      // Escape: Cancel target mode
+      if (e.key === 'Escape' && isTargetMode) {
+        e.preventDefault();
+        setTargetMode(false);
+      }
     };
 
     const navigateToNextCaption = () => {
@@ -135,6 +149,8 @@ export function useKeyboardShortcuts() {
     setCurrentTime,
     areSelectedCaptionsAdjacent,
     updateCaptionStyle,
-    getStylePreset
+    getStylePreset,
+    isTargetMode,
+    setTargetMode
   ]);
 }
