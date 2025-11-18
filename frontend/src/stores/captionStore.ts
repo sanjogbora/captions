@@ -6,19 +6,22 @@ interface CaptionState {
   // Data
   captions: Caption[];
   selectedCaptionIds: string[];
+  lastSelectedIndex: number;
   history: Caption[][];
   historyIndex: number;
 
   // Computed
   visibleCaptions: (currentTime: number) => Caption[];
   getSelectedCaptions: () => Caption[];
+  areSelectedCaptionsAdjacent: () => boolean;
 
   // Actions
   setCaptions: (captions: Caption[]) => void;
   addCaption: (caption: Caption) => void;
   updateCaptionPosition: (id: string, position: Partial<Caption['position']>) => void;
   updateCaptionStyle: (id: string, style: Partial<CaptionStyle>) => void;
-  selectCaption: (id: string, multiSelect: boolean) => void;
+  updateCaptionTiming: (id: string, startTime?: number, endTime?: number) => void;
+  selectCaption: (id: string, mode: 'single' | 'toggle' | 'range') => void;
   deselectAll: () => void;
   groupSelectedCaptions: () => void;
   ungroupSelectedCaptions: () => void;
@@ -34,6 +37,7 @@ export const useCaptionStore = create<CaptionState>((set, get) => ({
   // Initial state
   captions: [],
   selectedCaptionIds: [],
+  lastSelectedIndex: -1,
   history: [],
   historyIndex: -1,
 
@@ -47,6 +51,25 @@ export const useCaptionStore = create<CaptionState>((set, get) => ({
   getSelectedCaptions: () => {
     const { captions, selectedCaptionIds } = get();
     return captions.filter(c => selectedCaptionIds.includes(c.id));
+  },
+
+  areSelectedCaptionsAdjacent: () => {
+    const { captions, selectedCaptionIds } = get();
+    if (selectedCaptionIds.length <= 1) return true;
+
+    // Find indices of selected captions
+    const selectedIndices = selectedCaptionIds
+      .map(id => captions.findIndex(c => c.id === id))
+      .filter(idx => idx !== -1)
+      .sort((a, b) => a - b);
+
+    // Check if they are consecutive
+    for (let i = 1; i < selectedIndices.length; i++) {
+      if (selectedIndices[i] !== selectedIndices[i - 1] + 1) {
+        return false;
+      }
+    }
+    return true;
   },
 
   // Actions
@@ -101,23 +124,64 @@ export const useCaptionStore = create<CaptionState>((set, get) => ({
     get().saveToHistory();
   },
 
-  selectCaption: (id, multiSelect) => {
+  updateCaptionTiming: (id, startTime, endTime) => {
+    set(state => ({
+      captions: state.captions.map(caption =>
+        caption.id === id
+          ? {
+              ...caption,
+              ...(startTime !== undefined && { startTime }),
+              ...(endTime !== undefined && { endTime })
+            }
+          : caption
+      )
+    }));
+    get().saveToHistory();
+  },
+
+  selectCaption: (id, mode) => {
     set(state => {
-      if (multiSelect) {
-        // Add to selection
+      const clickedIndex = state.captions.findIndex(c => c.id === id);
+      if (clickedIndex === -1) return state;
+
+      if (mode === 'toggle') {
+        // Ctrl/Cmd+Click: Toggle individual item
         const isAlreadySelected = state.selectedCaptionIds.includes(id);
         if (isAlreadySelected) {
           return {
-            selectedCaptionIds: state.selectedCaptionIds.filter(cid => cid !== id)
+            selectedCaptionIds: state.selectedCaptionIds.filter(cid => cid !== id),
+            lastSelectedIndex: state.selectedCaptionIds.length > 1 ? state.lastSelectedIndex : clickedIndex
           };
         }
         return {
-          selectedCaptionIds: [...state.selectedCaptionIds, id]
+          selectedCaptionIds: [...state.selectedCaptionIds, id],
+          lastSelectedIndex: clickedIndex
+        };
+      } else if (mode === 'range') {
+        // Shift+Click: Select range from last selected to clicked
+        if (state.lastSelectedIndex === -1 || state.selectedCaptionIds.length === 0) {
+          return {
+            selectedCaptionIds: [id],
+            lastSelectedIndex: clickedIndex
+          };
+        }
+
+        const startIndex = Math.min(state.lastSelectedIndex, clickedIndex);
+        const endIndex = Math.max(state.lastSelectedIndex, clickedIndex);
+
+        const rangeIds = state.captions
+          .slice(startIndex, endIndex + 1)
+          .map(c => c.id);
+
+        return {
+          selectedCaptionIds: rangeIds,
+          lastSelectedIndex: state.lastSelectedIndex // Keep the anchor point
         };
       } else {
-        // Replace selection
+        // Normal click: Replace selection
         return {
-          selectedCaptionIds: [id]
+          selectedCaptionIds: [id],
+          lastSelectedIndex: clickedIndex
         };
       }
     });

@@ -6,6 +6,7 @@ export default function StylePanel() {
   const {
     selectedCaptionIds,
     updateCaptionStyle,
+    updateCaptionTiming,
     groupSelectedCaptions,
     ungroupSelectedCaptions,
     getSelectedCaptions,
@@ -47,6 +48,52 @@ export default function StylePanel() {
           {/* Selected Count */}
           <div className="text-sm text-gray-400">
             {selectedCaptions.length} caption(s) selected
+          </div>
+
+          {/* Timing Controls */}
+          <div className="pt-2 border-t border-gray-700">
+            <label className="block text-sm font-medium mb-2">
+              Display Timing
+            </label>
+            <div className="space-y-2">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">
+                  Start Time: {firstCaption?.startTime.toFixed(2)}s
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={firstCaption?.startTime.toFixed(2) || 0}
+                  onChange={(e) => {
+                    const newStartTime = parseFloat(e.target.value);
+                    selectedCaptionIds.forEach(id => {
+                      updateCaptionTiming(id, newStartTime, undefined);
+                    });
+                  }}
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">
+                  End Time: {firstCaption?.endTime.toFixed(2)}s
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={firstCaption?.endTime.toFixed(2) || 0}
+                  onChange={(e) => {
+                    const newEndTime = parseFloat(e.target.value);
+                    selectedCaptionIds.forEach(id => {
+                      updateCaptionTiming(id, undefined, newEndTime);
+                    });
+                  }}
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <p className="text-xs text-gray-400 italic">
+                Extend end time to keep words visible longer on screen
+              </p>
+            </div>
           </div>
 
           {/* Style Presets */}

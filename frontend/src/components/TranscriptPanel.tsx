@@ -40,9 +40,16 @@ export default function TranscriptPanel() {
                   // Jump to this word's time
                   setCurrentTime(caption.startTime);
 
-                  // Select the word (multi-select with Shift, Ctrl, or Cmd)
-                  const isMultiSelect = e.shiftKey || e.ctrlKey || e.metaKey;
-                  selectCaption(caption.id, isMultiSelect);
+                  // Determine selection mode
+                  let mode: 'single' | 'toggle' | 'range' = 'single';
+                  if (e.shiftKey) {
+                    mode = 'range';
+                  } else if (e.ctrlKey || e.metaKey) {
+                    mode = 'toggle';
+                  }
+
+                  // Select the word with the appropriate mode
+                  selectCaption(caption.id, mode);
                 }}
               >
                 <div className="flex items-center justify-between">
