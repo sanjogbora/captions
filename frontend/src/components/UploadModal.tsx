@@ -9,9 +9,13 @@ interface UploadModalProps {
   onClose: () => void;
 }
 
+type ProgressStage = 'idle' | 'uploading' | 'transcribing' | 'processing' | 'done';
+
 export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [progressStage, setProgressStage] = useState<ProgressStage>('idle');
+  const [uploadProgress, setUploadProgress] = useState(0);
   const { setVideoUrl, setLoading, setError } = useUIStore();
   const { setCaptions } = useCaptionStore();
 
@@ -35,6 +39,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
   const handleUpload = async () => {
     if (!file) return;
 
+    setProgressStage('uploading');
     setLoading(true, 'Uploading video...');
 
     try {
@@ -54,6 +59,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
       const uploadData = await uploadResponse.json();
 
       // Transcribe video
+      setProgressStage('transcribing');
       setLoading(true, 'Transcribing video...');
 
       const transcribeResponse = await fetch('http://localhost:8000/api/transcribe/', {
@@ -72,6 +78,9 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
       const transcribeData = await transcribeResponse.json();
 
       // Create captions from transcript
+      setProgressStage('processing');
+      setLoading(true, 'Processing captions...');
+
       // Use a standard reference size that works for most video players
       const referenceWidth = 800;
       const referenceHeight = 450; // 16:9 aspect ratio
@@ -92,11 +101,17 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
       setVideoUrl(videoUrl);
       setCaptions(captions);
 
-      // Close modal
-      onClose();
+      setProgressStage('done');
+
+      // Close modal after brief delay
+      setTimeout(() => {
+        onClose();
+        setProgressStage('idle');
+      }, 500);
     } catch (error) {
       console.error('Upload error:', error);
       setError(error instanceof Error ? error.message : 'Upload failed');
+      setProgressStage('idle');
     } finally {
       setLoading(false);
     }
@@ -146,16 +161,64 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
           </label>
         </div>
 
+        {/* Progress Indicator */}
+        {progressStage !== 'idle' && (
+          <div className="mt-6 space-y-3">
+            {/* Stage 1: Uploading */}
+            <div className="flex items-center gap-3">
+              {progressStage === 'uploading' ? (
+                <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              ) : progressStage !== 'idle' ? (
+                <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>
+              ) : (
+                <div className="w-5 h-5 border-2 border-gray-600 rounded-full" />
+              )}
+              <span className={`text-sm ${progressStage === 'uploading' ? 'text-white font-medium' : 'text-gray-400'}`}>
+                Uploading video {file && `(${(file.size / 1024 / 1024).toFixed(1)} MB)`}
+              </span>
+            </div>
+
+            {/* Stage 2: Transcribing */}
+            <div className="flex items-center gap-3">
+              {progressStage === 'transcribing' ? (
+                <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              ) : ['processing', 'done'].includes(progressStage) ? (
+                <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>
+              ) : (
+                <div className="w-5 h-5 border-2 border-gray-600 rounded-full" />
+              )}
+              <span className={`text-sm ${progressStage === 'transcribing' ? 'text-white font-medium' : 'text-gray-400'}`}>
+                Transcribing with AI
+              </span>
+            </div>
+
+            {/* Stage 3: Processing */}
+            <div className="flex items-center gap-3">
+              {progressStage === 'processing' ? (
+                <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              ) : progressStage === 'done' ? (
+                <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>
+              ) : (
+                <div className="w-5 h-5 border-2 border-gray-600 rounded-full" />
+              )}
+              <span className={`text-sm ${progressStage === 'processing' ? 'text-white font-medium' : 'text-gray-400'}`}>
+                Processing captions
+              </span>
+            </div>
+          </div>
+        )}
+
         <div className="flex justify-end space-x-2 mt-6">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+            disabled={progressStage !== 'idle' && progressStage !== 'done'}
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleUpload}
-            disabled={!file}
+            disabled={!file || (progressStage !== 'idle' && progressStage !== 'done')}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded transition-colors"
           >
             Upload & Transcribe

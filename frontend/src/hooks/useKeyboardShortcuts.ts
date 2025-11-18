@@ -15,7 +15,8 @@ export function useKeyboardShortcuts() {
     getSelectedCaptions,
     selectCaption,
     areSelectedCaptionsAdjacent,
-    updateCaptionStyle
+    updateCaptionStyle,
+    updateCaptionTiming
   } = useCaptionStore();
 
   const { togglePlay } = useVideoControl();
@@ -105,6 +106,26 @@ export function useKeyboardShortcuts() {
         e.preventDefault();
         setTargetMode(false);
       }
+
+      // Shift+D: Extend selected words to end of last selected word
+      if (e.shiftKey && e.key.toLowerCase() === 'd' && !cmdOrCtrl) {
+        e.preventDefault();
+        if (selectedCaptionIds.length > 0) {
+          // Find the last selected word by caption index
+          const selectedIndices = selectedCaptionIds.map(id =>
+            captions.findIndex(c => c.id === id)
+          );
+          const lastIndex = Math.max(...selectedIndices);
+          const lastCaption = captions[lastIndex];
+
+          if (lastCaption) {
+            // Extend all selected captions to the end time of the last one
+            selectedCaptionIds.forEach(id => {
+              updateCaptionTiming(id, undefined, lastCaption.endTime);
+            });
+          }
+        }
+      }
     };
 
     const navigateToNextCaption = () => {
@@ -149,6 +170,7 @@ export function useKeyboardShortcuts() {
     setCurrentTime,
     areSelectedCaptionsAdjacent,
     updateCaptionStyle,
+    updateCaptionTiming,
     getStylePreset,
     isTargetMode,
     setTargetMode

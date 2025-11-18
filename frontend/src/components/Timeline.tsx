@@ -5,7 +5,7 @@ import { formatTimeSimple } from '../utils/captionUtils';
 
 export default function Timeline() {
   const timelineRef = useRef<HTMLDivElement>(null);
-  const { captions, selectedCaptionIds, updateCaptionTiming } = useCaptionStore();
+  const { captions, selectedCaptionIds, updateCaptionTiming, saveToHistory } = useCaptionStore();
   const { currentTime, videoDuration, setCurrentTime } = useUIStore();
   const [dragging, setDragging] = useState<{ id: string; type: 'start' | 'end' | 'move'; initialTime: number } | null>(null);
 
@@ -49,21 +49,25 @@ export default function Timeline() {
 
     if (dragging.type === 'start') {
       const newStartTime = Math.max(0, Math.min(currentTime, caption.endTime - 0.1));
-      updateCaptionTiming(dragging.id, newStartTime, undefined);
+      updateCaptionTiming(dragging.id, newStartTime, undefined, true); // Skip history during drag
     } else if (dragging.type === 'end') {
       const newEndTime = Math.max(caption.startTime + 0.1, Math.min(currentTime, videoDuration));
-      updateCaptionTiming(dragging.id, undefined, newEndTime);
+      updateCaptionTiming(dragging.id, undefined, newEndTime, true); // Skip history during drag
     } else if (dragging.type === 'move') {
       const delta = currentTime - dragging.initialTime;
       const duration = caption.endTime - caption.startTime;
       const newStartTime = Math.max(0, Math.min(caption.startTime + delta, videoDuration - duration));
       const newEndTime = newStartTime + duration;
-      updateCaptionTiming(dragging.id, newStartTime, newEndTime);
+      updateCaptionTiming(dragging.id, newStartTime, newEndTime, true); // Skip history during drag
       setDragging({ ...dragging, initialTime: currentTime });
     }
   };
 
   const handleMouseUp = () => {
+    if (dragging) {
+      // Save to history once when drag ends
+      saveToHistory();
+    }
     setDragging(null);
   };
 

@@ -20,7 +20,7 @@ interface CaptionState {
   addCaption: (caption: Caption) => void;
   updateCaptionPosition: (id: string, position: Partial<Caption['position']>) => void;
   updateCaptionStyle: (id: string, style: Partial<CaptionStyle>) => void;
-  updateCaptionTiming: (id: string, startTime?: number, endTime?: number) => void;
+  updateCaptionTiming: (id: string, startTime?: number, endTime?: number, skipHistory?: boolean) => void;
   extendSelectedCaptionsToTarget: (targetId: string) => void;
   selectCaption: (id: string, mode: 'single' | 'toggle' | 'range') => void;
   deselectAll: () => void;
@@ -125,7 +125,7 @@ export const useCaptionStore = create<CaptionState>((set, get) => ({
     get().saveToHistory();
   },
 
-  updateCaptionTiming: (id, startTime, endTime) => {
+  updateCaptionTiming: (id, startTime, endTime, skipHistory = false) => {
     set(state => ({
       captions: state.captions.map(caption =>
         caption.id === id
@@ -137,7 +137,9 @@ export const useCaptionStore = create<CaptionState>((set, get) => ({
           : caption
       )
     }));
-    get().saveToHistory();
+    if (!skipHistory) {
+      get().saveToHistory();
+    }
   },
 
   extendSelectedCaptionsToTarget: (targetId) => {
