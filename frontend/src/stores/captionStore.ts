@@ -23,6 +23,8 @@ interface CaptionState {
   updateCaptionPosition: (id: string, position: Partial<Caption['position']>) => void;
   updateCaptionStyle: (id: string, style: Partial<CaptionStyle>) => void;
   updateCaptionTiming: (id: string, startTime?: number, endTime?: number, skipHistory?: boolean) => void;
+  updateCaptionText: (id: string, text: string) => void;
+  mergeSelectedCaptions: () => void;
   extendSelectedCaptionsToTarget: (targetId: string) => void;
   selectCaption: (id: string, mode: 'single' | 'toggle' | 'range') => void;
   deselectAll: () => void;
@@ -155,6 +157,52 @@ export const useCaptionStore = create<CaptionState>((set, get) => ({
     if (!skipHistory) {
       get().saveToHistory();
     }
+  },
+
+  updateCaptionText: (id, text) => {
+    set(state => ({
+      captions: state.captions.map(caption =>
+        caption.id === id
+          ? { ...caption, word: text }
+          : caption
+      )
+    }));
+    get().saveToHistory();
+  },
+
+  mergeSelectedCaptions: () => {
+    const { captions, selectedCaptionIds } = get();
+
+    if (selectedCaptionIds.length < 2) return;
+
+    // Get selected captions in order
+    const selectedCaptions = captions.filter(c => selectedCaptionIds.includes(c.id));
+    selectedCaptions.sort((a, b) => a.startTime - b.startTime);
+
+    // Create merged caption
+    const firstCaption = selectedCaptions[0];
+    const lastCaption = selectedCaptions[selectedCaptions.length - 1];
+    const mergedText = selectedCaptions.map(c => c.word).join(' ');
+
+    const mergedCaption: Caption = {
+      ...firstCaption,
+      id: uuidv4(),
+      word: mergedText,
+      startTime: firstCaption.startTime,
+      endTime: lastCaption.endTime,
+      isGrouped: false,
+      groupId: null,
+    };
+
+    // Remove selected captions and add merged one
+    set(state => ({
+      captions: [
+        ...state.captions.filter(c => !selectedCaptionIds.includes(c.id)),
+        mergedCaption
+      ].sort((a, b) => a.startTime - b.startTime),
+      selectedCaptionIds: [mergedCaption.id]
+    }));
+    get().saveToHistory();
   },
 
   extendSelectedCaptionsToTarget: (targetId) => {

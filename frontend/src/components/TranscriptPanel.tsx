@@ -1,14 +1,43 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useCaptionStore } from '../stores/captionStore';
 import { useUIStore } from '../stores/uiStore';
 import { formatTime, groupCaptionsIntoSentences } from '../utils/captionUtils';
 
 export default function TranscriptPanel() {
-  const { captions, selectCaption, selectedCaptionIds, extendSelectedCaptionsToTarget } = useCaptionStore();
+  const { captions, selectCaption, selectedCaptionIds, extendSelectedCaptionsToTarget, updateCaptionText } = useCaptionStore();
   const { currentTime, setCurrentTime, isTargetMode, setTargetMode, transcriptMode, setTranscriptMode } = useUIStore();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
 
   // Group captions into sentences
   const sentences = useMemo(() => groupCaptionsIntoSentences(captions), [captions]);
+
+  const startEditing = (captionId: string, currentText: string) => {
+    setEditingId(captionId);
+    setEditText(currentText);
+  };
+
+  const saveEdit = () => {
+    if (editingId && editText.trim()) {
+      updateCaptionText(editingId, editText.trim());
+    }
+    setEditingId(null);
+    setEditText('');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditText('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      saveEdit();
+    } else if (e.key === 'Escape') {
+      cancelEdit();
+    }
+  };
 
   if (captions.length === 0) {
     return (
@@ -97,14 +126,31 @@ export default function TranscriptPanel() {
                   // Jump to this word's time (after selection to avoid confusion)
                   setCurrentTime(caption.startTime);
                 }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  startEditing(caption.id, caption.word);
+                }}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-400">
                     {formatTime(caption.startTime)}
                   </span>
-                  <span className={`text-sm ${isActive ? 'font-bold' : ''}`}>
-                    {caption.word}
-                  </span>
+                  {editingId === caption.id ? (
+                    <input
+                      type="text"
+                      className="flex-1 ml-2 px-2 py-1 text-sm bg-gray-800 text-white border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      onBlur={saveEdit}
+                      autoFocus
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span className={`text-sm ${isActive ? 'font-bold' : ''}`}>
+                      {caption.word}
+                    </span>
+                  )}
                 </div>
               </div>
             );

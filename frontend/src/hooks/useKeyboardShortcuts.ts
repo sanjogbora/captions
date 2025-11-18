@@ -17,7 +17,8 @@ export function useKeyboardShortcuts() {
     areSelectedCaptionsAdjacent,
     updateCaptionStyle,
     updateCaptionTiming,
-    updateCaptionPosition
+    updateCaptionPosition,
+    mergeSelectedCaptions
   } = useCaptionStore();
 
   const { togglePlay } = useVideoControl();
@@ -70,6 +71,12 @@ export function useKeyboardShortcuts() {
         } else if (selected.length === 1 && selected[0].isGrouped) {
           ungroupSelectedCaptions();
         }
+      }
+
+      // Merge selected captions
+      if (e.key.toLowerCase() === 'm' && !cmdOrCtrl && !e.shiftKey && selectedCaptionIds.length >= 2) {
+        e.preventDefault();
+        mergeSelectedCaptions();
       }
 
       // Navigate to next/previous caption with Arrow keys
@@ -222,6 +229,7 @@ export function useKeyboardShortcuts() {
     deleteSelectedCaptions,
     groupSelectedCaptions,
     ungroupSelectedCaptions,
+    mergeSelectedCaptions,
     getSelectedCaptions,
     selectCaption,
     togglePlay,

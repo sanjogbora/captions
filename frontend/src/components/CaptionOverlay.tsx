@@ -17,9 +17,11 @@ export default function CaptionOverlay({
   videoHeight,
   sentenceMode = false
 }: CaptionOverlayProps) {
-  const { updateCaptionPosition, updateCaptionStyle, selectedCaptionIds, selectCaption, extendSelectedCaptionsToTarget } = useCaptionStore();
+  const { updateCaptionPosition, updateCaptionStyle, selectedCaptionIds, selectCaption, extendSelectedCaptionsToTarget, updateCaptionText } = useCaptionStore();
   const { isTargetMode, setTargetMode } = useUIStore();
   const [resizing, setResizing] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
   const [captionSizes, setCaptionSizes] = useState<Map<string, { width: number; height: number }>>(new Map());
   const captionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -38,6 +40,33 @@ export default function CaptionOverlay({
     });
     setCaptionSizes(newSizes);
   }, [captions, videoWidth, videoHeight]); // Remeasure when captions or video size changes
+
+  const startEditing = (captionId: string, currentText: string) => {
+    setEditingId(captionId);
+    setEditText(currentText);
+  };
+
+  const saveEdit = () => {
+    if (editingId && editText.trim()) {
+      updateCaptionText(editingId, editText.trim());
+    }
+    setEditingId(null);
+    setEditText('');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditText('');
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      saveEdit();
+    } else if (e.key === 'Escape') {
+      cancelEdit();
+    }
+  };
 
   // In sentence mode, combine all captions into one
   if (sentenceMode && captions.length > 0) {
@@ -110,9 +139,31 @@ export default function CaptionOverlay({
             key={caption.id}
             position={{ x: scaledX, y: scaledY }}
             onStop={(_e, data) => {
+              // Get the actual element to measure its current size
+              const element = captionRefs.current.get(caption.id);
+              let actualWidth = captionWidth;
+              let actualHeight = captionHeight;
+
+              if (element) {
+                const rect = element.getBoundingClientRect();
+                const containerRect = element.parentElement?.parentElement?.getBoundingClientRect();
+                if (containerRect) {
+                  actualWidth = rect.width;
+                  actualHeight = rect.height;
+                }
+              }
+
+              // Recalculate bounds with actual measured size
+              const safeBounds = {
+                left: 0,
+                top: 0,
+                right: Math.max(0, videoWidth - actualWidth),
+                bottom: Math.max(0, videoHeight - actualHeight)
+              };
+
               // Constrain to bounds before storing
-              const constrainedX = Math.max(0, Math.min(data.x, bounds.right));
-              const constrainedY = Math.max(0, Math.min(data.y, bounds.bottom));
+              const constrainedX = Math.max(safeBounds.left, Math.min(data.x, safeBounds.right));
+              const constrainedY = Math.max(safeBounds.top, Math.min(data.y, safeBounds.bottom));
 
               // Store position in reference coordinates
               updateCaptionPosition(caption.id, {
@@ -155,6 +206,10 @@ export default function CaptionOverlay({
                   selectCaption(caption.id, 'single'); // Normal: Single select
                 }
               }}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                startEditing(caption.id, caption.word);
+              }}
               style={{
                 fontSize: caption.style.fontSize,
                 fontFamily: caption.style.fontFamily,
@@ -179,7 +234,28 @@ export default function CaptionOverlay({
                 maxWidth: 'none',
               }}
             >
-              {caption.word}
+              {editingId === caption.id ? (
+                <input
+                  type="text"
+                  className="bg-transparent outline-none border-2 border-blue-500 px-1"
+                  style={{
+                    fontSize: 'inherit',
+                    fontFamily: 'inherit',
+                    color: 'inherit',
+                    fontWeight: 'inherit',
+                    width: `${Math.max(editText.length * caption.style.fontSize * 0.6, caption.style.fontSize * 2)}px`,
+                  }}
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  onKeyDown={handleEditKeyDown}
+                  onBlur={saveEdit}
+                  autoFocus
+                  onClick={(e) => e.stopPropagation()}
+                  onDoubleClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                caption.word
+              )}
 
               {/* Resize Handle */}
               {selectedCaptionIds.includes(caption.id) && (
@@ -199,7 +275,7 @@ export default function CaptionOverlay({
 
                     const handleMouseMove = (moveEvent: MouseEvent) => {
                       moveEvent.preventDefault();
-                      const deltaY = startY - moveEvent.clientY; // Inverted: up = increase
+                      const deltaY = moveEvent.clientY - startY; // down = increase, up = decrease
                       const newFontSize = Math.max(12, Math.min(120, startFontSize + deltaY));
                       updateCaptionStyle(caption.id, { fontSize: newFontSize });
                     };
