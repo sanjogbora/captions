@@ -8,12 +8,14 @@ interface CaptionOverlayProps {
   captions: Caption[];
   videoWidth: number;
   videoHeight: number;
+  sentenceMode?: boolean;
 }
 
 export default function CaptionOverlay({
   captions,
   videoWidth,
-  videoHeight
+  videoHeight,
+  sentenceMode = false
 }: CaptionOverlayProps) {
   const { updateCaptionPosition, updateCaptionStyle, selectedCaptionIds, selectCaption, extendSelectedCaptionsToTarget } = useCaptionStore();
   const { isTargetMode, setTargetMode } = useUIStore();
@@ -36,6 +38,49 @@ export default function CaptionOverlay({
     });
     setCaptionSizes(newSizes);
   }, [captions, videoWidth, videoHeight]); // Remeasure when captions or video size changes
+
+  // In sentence mode, combine all captions into one
+  if (sentenceMode && captions.length > 0) {
+    const firstCaption = captions[0];
+    const sentenceText = captions.map(c => c.word).join(' ');
+    const scaleX = videoWidth / REFERENCE_WIDTH;
+    const scaleY = videoHeight / REFERENCE_HEIGHT;
+    const scaledX = firstCaption.position.x * scaleX;
+    const scaledY = firstCaption.position.y * scaleY;
+
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div
+          className="absolute pointer-events-auto"
+          style={{
+            left: `${scaledX}px`,
+            top: `${scaledY}px`,
+            fontSize: firstCaption.style.fontSize,
+            fontFamily: firstCaption.style.fontFamily,
+            color: firstCaption.style.color,
+            fontWeight: firstCaption.style.fontWeight,
+            textTransform: firstCaption.style.textTransform,
+            letterSpacing: firstCaption.style.letterSpacing,
+            textShadow: firstCaption.style.textShadow || undefined,
+            transform: `rotate(${firstCaption.style.rotation}deg)`,
+            WebkitTextStroke: firstCaption.style.strokeWidth
+              ? `${firstCaption.style.strokeWidth}px ${firstCaption.style.strokeColor}`
+              : 'none',
+            backgroundColor: firstCaption.style.backgroundColor
+              ? `${firstCaption.style.backgroundColor}${Math.round(firstCaption.style.backgroundOpacity * 255).toString(16).padStart(2, '0')}`
+              : 'transparent',
+            padding: firstCaption.style.backgroundColor ? '8px 16px' : '0',
+            borderRadius: firstCaption.style.backgroundColor ? '4px' : '0',
+            whiteSpace: 'nowrap',
+            zIndex: firstCaption.zIndex,
+            display: 'inline-block',
+          }}
+        >
+          {sentenceText}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">

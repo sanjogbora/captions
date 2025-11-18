@@ -5,7 +5,7 @@ import { useUIStore } from '../stores/uiStore';
 export default function Toolbar() {
   const { isPlaying, togglePlay, exportVideo } = useVideoControl();
   const { undo, redo, canUndo, canRedo, captions } = useCaptionStore();
-  const { setLoading, isClickToPlaceMode, setClickToPlaceMode, clickToPlaceIndex } = useUIStore();
+  const { setLoading, isClickToPlaceMode, setClickToPlaceMode, clickToPlaceIndex, setCurrentTime } = useUIStore();
 
   const handleExport = async () => {
     setLoading(true, 'Exporting video...');
@@ -38,7 +38,14 @@ export default function Toolbar() {
         {/* Click-to-Place Mode */}
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => setClickToPlaceMode(!isClickToPlaceMode)}
+            onClick={() => {
+              const newMode = !isClickToPlaceMode;
+              setClickToPlaceMode(newMode);
+              // When entering mode, seek video to current word's time
+              if (newMode && captions.length > 0 && captions[clickToPlaceIndex]) {
+                setCurrentTime(captions[clickToPlaceIndex].startTime);
+              }
+            }}
             className={`px-4 py-2 rounded text-white font-medium transition-colors ${
               isClickToPlaceMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-700 hover:bg-gray-600'
             }`}

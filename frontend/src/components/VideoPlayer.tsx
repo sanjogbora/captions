@@ -104,6 +104,7 @@ export default function VideoPlayer() {
           captions={activeCaptions}
           videoWidth={containerRef.current?.clientWidth || 1920}
           videoHeight={containerRef.current?.clientHeight || 1080}
+          sentenceMode={transcriptMode === 'sentence'}
         />
 
         {/* Click-to-Place Mode Indicator */}
@@ -117,9 +118,16 @@ export default function VideoPlayer() {
           const displayX = pendingPlacement.x * scaleX;
           const displayY = pendingPlacement.y * scaleY;
 
+          // Get current caption and any grouped captions
+          const currentCaption = captions[clickToPlaceIndex];
+          const groupedCaptions = currentCaption.isGrouped
+            ? captions.filter(c => c.groupId === currentCaption.groupId)
+            : [currentCaption];
+          const displayText = groupedCaptions.map(c => c.word).join(' ');
+
           return (
             <div
-              className="absolute pointer-events-none"
+              className="absolute pointer-events-none z-50"
               style={{
                 left: `${displayX}px`,
                 top: `${displayY}px`,
@@ -128,13 +136,32 @@ export default function VideoPlayer() {
             >
             {/* Crosshair marker */}
             <div className="relative">
-              <div className="absolute w-8 h-0.5 bg-yellow-400 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"></div>
-              <div className="absolute w-0.5 h-8 bg-yellow-400 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"></div>
-              <div className="absolute w-4 h-4 border-2 border-yellow-400 rounded-full left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"></div>
+              <div className="absolute w-12 h-0.5 bg-yellow-400 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shadow-lg"></div>
+              <div className="absolute w-0.5 h-12 bg-yellow-400 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shadow-lg"></div>
+              <div className="absolute w-6 h-6 border-2 border-yellow-400 rounded-full left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shadow-lg"></div>
             </div>
-            {/* Word preview */}
-            <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-black/80 text-yellow-400 px-3 py-1 rounded text-sm whitespace-nowrap">
-              "{captions[clickToPlaceIndex].word}" - Press 1-9
+            {/* Word preview - shows the actual styled text */}
+            <div
+              className="absolute top-8 left-1/2 -translate-x-1/2 px-4 py-2 rounded shadow-xl border-2 border-yellow-400"
+              style={{
+                backgroundColor: currentCaption.style.backgroundColor || '#000000',
+                color: currentCaption.style.color,
+                fontSize: `${Math.min(currentCaption.style.fontSize, 24)}px`,
+                fontFamily: currentCaption.style.fontFamily,
+                fontWeight: currentCaption.style.fontWeight,
+                whiteSpace: 'nowrap',
+                zIndex: 100
+              }}
+            >
+              {displayText}
+              {groupedCaptions.length > 1 && (
+                <span className="text-xs text-yellow-400 ml-2" style={{ fontFamily: 'system-ui' }}>
+                  ({groupedCaptions.length} words)
+                </span>
+              )}
+              <div className="text-xs text-yellow-400 mt-1 text-center font-normal" style={{ fontFamily: 'system-ui' }}>
+                Press 1-9 for style
+              </div>
             </div>
           </div>
           );

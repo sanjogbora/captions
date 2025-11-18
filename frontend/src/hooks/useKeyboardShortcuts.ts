@@ -92,27 +92,49 @@ export function useKeyboardShortcuts() {
         if (isClickToPlaceMode && pendingPlacement && captions[clickToPlaceIndex]) {
           const currentCaption = captions[clickToPlaceIndex];
 
-          // Apply style preset if available
-          if (preset) {
-            updateCaptionStyle(currentCaption.id, preset.style);
-          }
+          // Get all captions in the group (or just current if not grouped)
+          const captionsToUpdate = currentCaption.isGrouped
+            ? captions.filter(c => c.groupId === currentCaption.groupId)
+            : [currentCaption];
 
-          // Update position (pendingPlacement is already in reference coordinates)
-          updateCaptionPosition(currentCaption.id, {
-            x: pendingPlacement.x,
-            y: pendingPlacement.y
+          // Apply style and position to all captions in the group
+          captionsToUpdate.forEach(caption => {
+            // Apply style preset if available
+            if (preset) {
+              updateCaptionStyle(caption.id, preset.style);
+            }
+
+            // Update position (pendingPlacement is already in reference coordinates)
+            updateCaptionPosition(caption.id, {
+              x: pendingPlacement.x,
+              y: pendingPlacement.y
+            });
           });
 
           // Clear pending placement
           setPendingPlacement(null);
 
-          // Move to next word
-          const nextIndex = clickToPlaceIndex + 1;
+          // Move to next word (skip to next ungrouped word or next group)
+          let nextIndex = clickToPlaceIndex + 1;
+
+          // Skip to next ungrouped word or next group leader
+          while (nextIndex < captions.length) {
+            const nextCaption = captions[nextIndex];
+            // If this word is not grouped, or it's the first word in a group, use it
+            if (!nextCaption.isGrouped || !captions[nextIndex - 1]?.isGrouped ||
+                captions[nextIndex - 1]?.groupId !== nextCaption.groupId) {
+              break;
+            }
+            nextIndex++;
+          }
+
           if (nextIndex >= captions.length) {
             // All words placed, exit mode
             setClickToPlaceMode(false);
           } else {
             setClickToPlaceIndex(nextIndex);
+            // Seek video to the next word's time
+            setCurrentTime(captions[nextIndex].startTime);
           }
         }
         // Priority 2: Apply to selected captions (normal mode)
