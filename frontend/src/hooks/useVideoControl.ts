@@ -29,9 +29,13 @@ export function useVideoControl() {
     }
 
     try {
-      // Extract video path from the URL
-      // Assuming videoUrl is like "http://localhost:8000/videos/filename.mp4"
-      const videoPath = videoUrl.replace(/^.*\/videos\//, 'uploads/');
+      // Extract filename from the URL
+      // videoUrl is like "http://localhost:8000/videos/filename.mp4"
+      const filename = videoUrl.split('/videos/').pop();
+      if (!filename) {
+        throw new Error('Invalid video URL');
+      }
+      const videoPath = `uploads/${filename}`;
 
       const response = await fetch('http://localhost:8000/api/render/', {
         method: 'POST',

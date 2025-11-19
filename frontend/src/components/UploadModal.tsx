@@ -95,9 +95,8 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
         )
       );
 
-      // Set video URL and captions
-      const videoUrl = URL.createObjectURL(file);
-      setVideoUrl(videoUrl);
+      // Set video URL from server (not blob URL) and captions
+      setVideoUrl(uploadData.url); // Use the URL returned from upload endpoint
       setCaptions(captions);
 
       setProgressStage('done');
