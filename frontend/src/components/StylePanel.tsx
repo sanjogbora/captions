@@ -339,6 +339,39 @@ export default function StylePanel() {
             />
           </div>
 
+          {/* Animation Effects */}
+          <div className="pt-4 border-t border-gray-700">
+            <label className="block text-sm font-medium mb-2">
+              Animation Effect
+            </label>
+            <select
+              value={firstCaption?.style.animation || 'none'}
+              onChange={(e) => applyStyle({ animation: e.target.value })}
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm mb-3"
+            >
+              <option value="none">Instant (No Effect)</option>
+              <option value="fade">Fade In/Out</option>
+              <option value="pop">Pop</option>
+              <option value="slide_up">Slide Up</option>
+              <option value="slide_down">Slide Down</option>
+              <option value="bounce">Bounce</option>
+              <option value="typewriter">Typewriter</option>
+            </select>
+
+            <button
+              onClick={() => {
+                const animation = firstCaption?.style.animation;
+                const { captions } = useCaptionStore.getState();
+                captions.forEach(caption => {
+                  updateCaptionStyle(caption.id, { animation });
+                });
+              }}
+              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded transition-colors text-sm"
+            >
+              Apply Animation to All Captions
+            </button>
+          </div>
+
           {/* Grouping */}
           <div className="pt-4 border-t border-gray-700">
             <label className="block text-sm font-medium mb-2">

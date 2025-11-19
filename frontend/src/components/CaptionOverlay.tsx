@@ -76,6 +76,7 @@ export default function CaptionOverlay({
     const scaleY = videoHeight / REFERENCE_HEIGHT;
     const scaledX = firstCaption.position.x * scaleX;
     const scaledY = firstCaption.position.y * scaleY;
+    const scaleFactor = Math.min(scaleX, scaleY); // Use uniform scale for fonts
 
     return (
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -84,22 +85,22 @@ export default function CaptionOverlay({
           style={{
             left: `${scaledX}px`,
             top: `${scaledY}px`,
-            fontSize: firstCaption.style.fontSize,
+            fontSize: `${firstCaption.style.fontSize * scaleFactor}px`,
             fontFamily: firstCaption.style.fontFamily,
             color: firstCaption.style.color,
             fontWeight: firstCaption.style.fontWeight,
             textTransform: firstCaption.style.textTransform,
-            letterSpacing: firstCaption.style.letterSpacing,
+            letterSpacing: `${firstCaption.style.letterSpacing * scaleFactor}px`,
             textShadow: firstCaption.style.textShadow || undefined,
             transform: `rotate(${firstCaption.style.rotation}deg)`,
             WebkitTextStroke: firstCaption.style.strokeWidth
-              ? `${firstCaption.style.strokeWidth}px ${firstCaption.style.strokeColor}`
+              ? `${firstCaption.style.strokeWidth * scaleFactor}px ${firstCaption.style.strokeColor}`
               : 'none',
             backgroundColor: firstCaption.style.backgroundColor
               ? `${firstCaption.style.backgroundColor}${Math.round(firstCaption.style.backgroundOpacity * 255).toString(16).padStart(2, '0')}`
               : 'transparent',
-            padding: firstCaption.style.backgroundColor ? '8px 16px' : '0',
-            borderRadius: firstCaption.style.backgroundColor ? '4px' : '0',
+            padding: firstCaption.style.backgroundColor ? `${8 * scaleFactor}px ${16 * scaleFactor}px` : '0',
+            borderRadius: firstCaption.style.backgroundColor ? `${4 * scaleFactor}px` : '0',
             whiteSpace: 'nowrap',
             zIndex: firstCaption.zIndex,
             display: 'inline-block',
@@ -117,14 +118,16 @@ export default function CaptionOverlay({
         // Scale position from reference size to actual video size
         const scaleX = videoWidth / REFERENCE_WIDTH;
         const scaleY = videoHeight / REFERENCE_HEIGHT;
+        const scaleFactor = Math.min(scaleX, scaleY); // Use uniform scale for fonts
 
         const scaledX = caption.position.x * scaleX;
         const scaledY = caption.position.y * scaleY;
 
-        // Use measured size if available, otherwise estimate
+        // Use measured size if available, otherwise estimate with scaled fontSize
         const measuredSize = captionSizes.get(caption.id);
-        const captionWidth = measuredSize?.width || caption.word.length * caption.style.fontSize * 0.6;
-        const captionHeight = measuredSize?.height || caption.style.fontSize * 1.2;
+        const scaledFontSize = caption.style.fontSize * scaleFactor;
+        const captionWidth = measuredSize?.width || caption.word.length * scaledFontSize * 0.6;
+        const captionHeight = measuredSize?.height || scaledFontSize * 1.2;
 
         // Calculate bounds to prevent captions from going outside
         const bounds = {
@@ -211,22 +214,22 @@ export default function CaptionOverlay({
                 startEditing(caption.id, caption.word);
               }}
               style={{
-                fontSize: caption.style.fontSize,
+                fontSize: `${scaledFontSize}px`,
                 fontFamily: caption.style.fontFamily,
                 color: caption.style.color,
                 fontWeight: caption.style.fontWeight,
                 textTransform: caption.style.textTransform,
-                letterSpacing: caption.style.letterSpacing,
+                letterSpacing: `${caption.style.letterSpacing * scaleFactor}px`,
                 textShadow: caption.style.textShadow || undefined,
                 transform: `rotate(${caption.style.rotation}deg)`,
                 WebkitTextStroke: caption.style.strokeWidth
-                  ? `${caption.style.strokeWidth}px ${caption.style.strokeColor}`
+                  ? `${caption.style.strokeWidth * scaleFactor}px ${caption.style.strokeColor}`
                   : 'none',
                 backgroundColor: caption.style.backgroundColor
                   ? `${caption.style.backgroundColor}${Math.round(caption.style.backgroundOpacity * 255).toString(16).padStart(2, '0')}`
                   : 'transparent',
-                padding: caption.style.backgroundColor ? '8px 16px' : '0',
-                borderRadius: caption.style.backgroundColor ? '4px' : '0',
+                padding: caption.style.backgroundColor ? `${8 * scaleFactor}px ${16 * scaleFactor}px` : '0',
+                borderRadius: caption.style.backgroundColor ? `${4 * scaleFactor}px` : '0',
                 whiteSpace: 'nowrap',
                 zIndex: caption.zIndex,
                 display: 'inline-block',
@@ -243,7 +246,7 @@ export default function CaptionOverlay({
                     fontFamily: 'inherit',
                     color: 'inherit',
                     fontWeight: 'inherit',
-                    width: `${Math.max(editText.length * caption.style.fontSize * 0.6, caption.style.fontSize * 2)}px`,
+                    width: `${Math.max(editText.length * scaledFontSize * 0.6, scaledFontSize * 2)}px`,
                   }}
                   value={editText}
                   onChange={(e) => setEditText(e.target.value)}

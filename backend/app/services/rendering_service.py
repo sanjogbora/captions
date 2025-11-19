@@ -147,7 +147,11 @@ def map_font_family(font_family: str) -> str:
 def apply_animation(clip, animation_type: str):
     """Apply animation to text clip"""
 
-    if animation_type == "fade":
+    if animation_type == "none":
+        # No animation - instant appear/disappear
+        return clip
+
+    elif animation_type == "fade":
         return clip.crossfadein(0.2).crossfadeout(0.2)
 
     elif animation_type == "pop":
@@ -160,6 +164,12 @@ def apply_animation(clip, animation_type: str):
             return (clip.pos[0], clip.pos[1] - t * 50)
         return clip.set_position(pos_func)
 
+    elif animation_type == "slide_down":
+        # Slide from top
+        def pos_func(t):
+            return (clip.pos[0], clip.pos[1] + t * 50)
+        return clip.set_position(pos_func)
+
     elif animation_type == "bounce":
         # Bounce effect
         import numpy as np
@@ -167,5 +177,10 @@ def apply_animation(clip, animation_type: str):
             return 1 + abs(np.sin(t * 10)) * 0.2
         return clip.resize(bounce)
 
+    elif animation_type == "typewriter":
+        # Typewriter effect (fade in quickly)
+        return clip.crossfadein(0.1)
+
     else:
+        # Unknown animation type - no animation
         return clip
