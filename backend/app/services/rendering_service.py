@@ -3,26 +3,43 @@ from moviepy.config import change_settings
 from typing import List
 import os
 from pathlib import Path
+import glob
 from app.models.caption_models import Caption
 
 # Configure ImageMagick path for Windows
-# Try common installation paths
-IMAGEMAGICK_PATHS = [
-    r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe",
-    r"C:\Program Files\ImageMagick-7.1.0-Q16-HDRI\magick.exe",
-    r"C:\Program Files\ImageMagick-7.0.11-Q16-HDRI\magick.exe",
-    r"C:\Program Files (x86)\ImageMagick-7.1.1-Q16-HDRI\magick.exe",
-]
+# Try to find ImageMagick automatically in Program Files
+def find_imagemagick():
+    """Find ImageMagick installation automatically"""
 
-# Find the first existing ImageMagick installation
-for path in IMAGEMAGICK_PATHS:
-    if os.path.exists(path):
-        change_settings({"IMAGEMAGICK_BINARY": path})
-        print(f"ImageMagick configured at: {path}")
-        break
-else:
-    # If not found in common locations, try to use system PATH
-    print("Warning: ImageMagick not found in common locations. Hoping it's in system PATH...")
+    # Check common installation directories
+    search_paths = [
+        r"C:\Program Files\ImageMagick*\magick.exe",
+        r"C:\Program Files (x86)\ImageMagick*\magick.exe",
+    ]
+
+    for search_path in search_paths:
+        matches = glob.glob(search_path)
+        if matches:
+            # Use the first match (usually the most recent version)
+            magick_path = matches[0]
+            change_settings({"IMAGEMAGICK_BINARY": magick_path})
+            print(f"✓ ImageMagick configured at: {magick_path}")
+            return True
+
+    # If not found, try the exact path user reported
+    exact_path = r"C:\Program Files\ImageMagick-7.1.2-Q16-HDRI\magick.exe"
+    if os.path.exists(exact_path):
+        change_settings({"IMAGEMAGICK_BINARY": exact_path})
+        print(f"✓ ImageMagick configured at: {exact_path}")
+        return True
+
+    print("⚠ WARNING: ImageMagick not found in common locations!")
+    print("Please install ImageMagick from: https://imagemagick.org/script/download.php#windows")
+    print("Or set the IMAGEMAGICK_BINARY environment variable to point to magick.exe")
+    return False
+
+# Try to configure ImageMagick on module load
+find_imagemagick()
 
 OUTPUT_DIR = Path("outputs")
 OUTPUT_DIR.mkdir(exist_ok=True)
