@@ -20,29 +20,44 @@ def render_video_with_captions(
     # Load video
     video = VideoFileClip(video_path)
 
+    # Reference dimensions used in the editor
+    REFERENCE_WIDTH = 800
+    REFERENCE_HEIGHT = 450
+
+    # Scale factors
+    scale_x = video.w / REFERENCE_WIDTH
+    scale_y = video.h / REFERENCE_HEIGHT
+
     # Create text clips for each caption
     text_clips = []
 
     for caption in captions:
         try:
+            # Scale position from reference to actual video dimensions
+            actual_x = caption.position.x * scale_x
+            actual_y = caption.position.y * scale_y
+
+            # Scale font size proportionally
+            actual_font_size = int(caption.style.fontSize * min(scale_x, scale_y))
+
             # Create text clip
             txt_clip = TextClip(
                 caption.word,
-                fontsize=caption.style.fontSize,
+                fontsize=actual_font_size,
                 font=map_font_family(caption.style.fontFamily),
                 color=caption.style.color,
                 stroke_color=caption.style.strokeColor if caption.style.strokeColor else None,
-                stroke_width=caption.style.strokeWidth,
-                method='caption',
-                size=(video.w, None)
+                stroke_width=int(caption.style.strokeWidth * min(scale_x, scale_y)) if caption.style.strokeWidth else 0,
+                method='label',
+                bg_color=caption.style.backgroundColor if caption.style.backgroundColor else None,
             )
 
             # Position
-            txt_clip = txt_clip.set_position((caption.position.x, caption.position.y))
+            txt_clip = txt_clip.set_position((actual_x, actual_y))
 
             # Set timing
             txt_clip = txt_clip.set_start(caption.startTime)
-            txt_clip = txt_clip.set_end(caption.endTime)
+            txt_clip = txt_clip.set_duration(caption.endTime - caption.startTime)
 
             # Apply animation
             txt_clip = apply_animation(txt_clip, caption.style.animation)
@@ -50,6 +65,8 @@ def render_video_with_captions(
             text_clips.append(txt_clip)
         except Exception as e:
             print(f"Error creating text clip for word '{caption.word}': {e}")
+            import traceback
+            traceback.print_exc()
             continue
 
     # Composite video with all text clips

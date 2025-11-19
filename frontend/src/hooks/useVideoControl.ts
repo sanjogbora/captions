@@ -33,7 +33,7 @@ export function useVideoControl() {
       // Assuming videoUrl is like "http://localhost:8000/videos/filename.mp4"
       const videoPath = videoUrl.replace(/^.*\/videos\//, 'uploads/');
 
-      const response = await fetch('http://localhost:8000/render', {
+      const response = await fetch('http://localhost:8000/api/render/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

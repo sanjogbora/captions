@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import uvicorn
+from pathlib import Path
 
 from app.routers import upload, transcribe, render
 
@@ -18,6 +20,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Create directories if they don't exist
+Path("uploads").mkdir(exist_ok=True)
+Path("outputs").mkdir(exist_ok=True)
+
+# Serve static files
+app.mount("/videos", StaticFiles(directory="uploads"), name="videos")
+app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
 
 # Include routers
 app.include_router(upload.router, prefix="/api/upload", tags=["upload"])

@@ -35,5 +35,6 @@ async def upload_video(file: UploadFile = File(...)):
         "file_id": file_id,
         "filename": filename,
         "path": str(file_path),
+        "url": f"http://localhost:8000/videos/{filename}",
         "size": os.path.getsize(file_path),
     }
