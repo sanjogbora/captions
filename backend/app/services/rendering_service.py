@@ -77,26 +77,32 @@ def render_video_with_captions(
             # Scale font size proportionally
             actual_font_size = int(caption.style.fontSize * min(scale_x, scale_y))
 
+            print(f"Processing caption '{caption.word}': pos=({actual_x:.1f}, {actual_y:.1f}), fontSize={actual_font_size}")
+
             # Get font and ensure it's never None
             font_family = map_font_family(caption.style.fontFamily)
             if not font_family:
                 font_family = "Arial"  # Extra safety
 
-            # Calculate max width for text wrapping (80% of video width)
-            max_text_width = int(video.w * 0.8)
+            # Build TextClip parameters - only include optional params if they have values
+            text_params = {
+                'fontsize': actual_font_size,
+                'font': font_family,
+                'color': caption.style.color,
+                'method': 'label',
+            }
 
-            # Create text clip with word wrapping support
-            txt_clip = TextClip(
-                caption.word,
-                fontsize=actual_font_size,
-                font=font_family,
-                color=caption.style.color,
-                stroke_color=caption.style.strokeColor if caption.style.strokeColor else None,
-                stroke_width=int(caption.style.strokeWidth * min(scale_x, scale_y)) if caption.style.strokeWidth else 0,
-                method='caption',  # Use 'caption' method for word wrapping
-                size=(max_text_width, None),  # Set max width, auto height
-                bg_color=caption.style.backgroundColor if caption.style.backgroundColor else None,
-            )
+            # Only add stroke if it's actually enabled
+            if caption.style.strokeColor and caption.style.strokeWidth and caption.style.strokeWidth > 0:
+                text_params['stroke_color'] = caption.style.strokeColor
+                text_params['stroke_width'] = int(caption.style.strokeWidth * min(scale_x, scale_y))
+
+            # Only add background if it's actually enabled
+            if caption.style.backgroundColor:
+                text_params['bg_color'] = caption.style.backgroundColor
+
+            # Create text clip
+            txt_clip = TextClip(caption.word, **text_params)
 
             # Position
             txt_clip = txt_clip.set_position((actual_x, actual_y))
@@ -109,6 +115,7 @@ def render_video_with_captions(
             txt_clip = apply_animation(txt_clip, caption.style.animation)
 
             text_clips.append(txt_clip)
+            print(f"  ✓ Successfully created caption for '{caption.word}'")
         except Exception as e:
             print(f"Error creating text clip for word '{caption.word}': {e}")
             import traceback
@@ -116,9 +123,11 @@ def render_video_with_captions(
             continue
 
     # Composite video with all text clips
+    print(f"\n✓ Created {len(text_clips)} out of {len(captions)} text clips")
     if text_clips:
         final_video = CompositeVideoClip([video] + text_clips)
     else:
+        print("⚠ WARNING: No text clips were created! Video will have no captions.")
         final_video = video
 
     # Output path
