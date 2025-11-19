@@ -1,8 +1,28 @@
 from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
+from moviepy.config import change_settings
 from typing import List
 import os
 from pathlib import Path
 from app.models.caption_models import Caption
+
+# Configure ImageMagick path for Windows
+# Try common installation paths
+IMAGEMAGICK_PATHS = [
+    r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe",
+    r"C:\Program Files\ImageMagick-7.1.0-Q16-HDRI\magick.exe",
+    r"C:\Program Files\ImageMagick-7.0.11-Q16-HDRI\magick.exe",
+    r"C:\Program Files (x86)\ImageMagick-7.1.1-Q16-HDRI\magick.exe",
+]
+
+# Find the first existing ImageMagick installation
+for path in IMAGEMAGICK_PATHS:
+    if os.path.exists(path):
+        change_settings({"IMAGEMAGICK_BINARY": path})
+        print(f"ImageMagick configured at: {path}")
+        break
+else:
+    # If not found in common locations, try to use system PATH
+    print("Warning: ImageMagick not found in common locations. Hoping it's in system PATH...")
 
 OUTPUT_DIR = Path("outputs")
 OUTPUT_DIR.mkdir(exist_ok=True)
