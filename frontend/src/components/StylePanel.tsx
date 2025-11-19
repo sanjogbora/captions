@@ -12,7 +12,7 @@ export default function StylePanel() {
     areSelectedCaptionsAdjacent
   } = useCaptionStore();
 
-  const { stylePresets, saveStylePreset } = useUIStore();
+  const { stylePresets, saveStylePreset, deleteStylePreset } = useUIStore();
   const [savingPreset, setSavingPreset] = useState<number | null>(null);
   const [presetName, setPresetName] = useState('');
 
@@ -58,19 +58,33 @@ export default function StylePanel() {
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(slot => {
                 const preset = stylePresets.find(p => p.id === slot);
                 return (
-                  <div key={slot} className="relative">
+                  <div key={slot} className="relative group">
                     {preset ? (
-                      <button
-                        onClick={() => {
-                          selectedCaptionIds.forEach(id => {
-                            updateCaptionStyle(id, preset.style);
-                          });
-                        }}
-                        className="w-full px-2 py-2 bg-blue-600 hover:bg-blue-700 rounded text-xs transition-colors"
-                        title={preset.name}
-                      >
-                        {slot}: {preset.name.slice(0, 6)}
-                      </button>
+                      <>
+                        <button
+                          onClick={() => {
+                            selectedCaptionIds.forEach(id => {
+                              updateCaptionStyle(id, preset.style);
+                            });
+                          }}
+                          className="w-full px-2 py-2 bg-blue-600 hover:bg-blue-700 rounded text-xs transition-colors"
+                          title={preset.name}
+                        >
+                          {slot}: {preset.name.slice(0, 6)}
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`Delete preset "${preset.name}"?`)) {
+                              deleteStylePreset(slot);
+                            }
+                          }}
+                          className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 hover:bg-red-700 rounded-full text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                          title="Delete preset"
+                        >
+                          ×
+                        </button>
+                      </>
                     ) : (
                       <button
                         onClick={() => setSavingPreset(slot)}
@@ -155,6 +169,37 @@ export default function StylePanel() {
               value={firstCaption?.style.fontWeight || 400}
               onChange={(e) => applyStyle({ fontWeight: parseInt(e.target.value) })}
               className="w-full"
+            />
+          </div>
+
+          {/* Font Family */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Font Family
+            </label>
+            <select
+              value={firstCaption?.style.fontFamily || 'Montserrat, sans-serif'}
+              onChange={(e) => applyStyle({ fontFamily: e.target.value })}
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm mb-2"
+            >
+              <option value="Montserrat, sans-serif">Montserrat</option>
+              <option value="Impact, sans-serif">Impact</option>
+              <option value="Bebas Neue, sans-serif">Bebas Neue</option>
+              <option value="Caveat, cursive">Caveat</option>
+              <option value="Arial, sans-serif">Arial</option>
+              <option value="Helvetica, sans-serif">Helvetica</option>
+              <option value="Times New Roman, serif">Times New Roman</option>
+              <option value="Georgia, serif">Georgia</option>
+              <option value="Courier New, monospace">Courier New</option>
+              <option value="Verdana, sans-serif">Verdana</option>
+              <option value="Comic Sans MS, cursive">Comic Sans MS</option>
+            </select>
+            <input
+              type="text"
+              value={firstCaption?.style.fontFamily || ''}
+              onChange={(e) => applyStyle({ fontFamily: e.target.value })}
+              placeholder="Or enter custom font..."
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm"
             />
           </div>
 

@@ -82,7 +82,10 @@ def render_video_with_captions(
             if not font_family:
                 font_family = "Arial"  # Extra safety
 
-            # Create text clip
+            # Calculate max width for text wrapping (80% of video width)
+            max_text_width = int(video.w * 0.8)
+
+            # Create text clip with word wrapping support
             txt_clip = TextClip(
                 caption.word,
                 fontsize=actual_font_size,
@@ -90,7 +93,8 @@ def render_video_with_captions(
                 color=caption.style.color,
                 stroke_color=caption.style.strokeColor if caption.style.strokeColor else None,
                 stroke_width=int(caption.style.strokeWidth * min(scale_x, scale_y)) if caption.style.strokeWidth else 0,
-                method='label',
+                method='caption',  # Use 'caption' method for word wrapping
+                size=(max_text_width, None),  # Set max width, auto height
                 bg_color=caption.style.backgroundColor if caption.style.backgroundColor else None,
             )
 
@@ -146,15 +150,39 @@ def map_font_family(font_family) -> str:
         return "Arial"
 
     font_map = {
+        # Original templates
         "Impact, sans-serif": "Impact",
         "Montserrat, sans-serif": "Arial-Bold",
         "Bebas Neue, sans-serif": "Arial-Black",
         "Caveat, cursive": "Comic-Sans-MS",
+        # Additional system fonts
+        "Arial, sans-serif": "Arial",
+        "Helvetica, sans-serif": "Helvetica",
+        "Times New Roman, serif": "Times-New-Roman",
+        "Georgia, serif": "Georgia",
+        "Courier New, monospace": "Courier-New",
+        "Verdana, sans-serif": "Verdana",
+        "Comic Sans MS, cursive": "Comic-Sans-MS",
     }
 
-    mapped_font = font_map.get(font_family, "Arial")
-    print(f"  Font mapping: '{font_family}' -> '{mapped_font}'")
-    return mapped_font
+    # If exact match exists, use it
+    if font_family in font_map:
+        mapped_font = font_map[font_family]
+        print(f"  Font mapping: '{font_family}' -> '{mapped_font}'")
+        return mapped_font
+
+    # Otherwise, try to extract just the font name (for custom fonts)
+    # e.g., "MyFont, sans-serif" -> "MyFont"
+    font_name = font_family.split(',')[0].strip()
+
+    # Remove quotes if present
+    font_name = font_name.strip('"').strip("'")
+
+    # Replace spaces with hyphens for system fonts
+    font_name_safe = font_name.replace(' ', '-')
+
+    print(f"  Font mapping (custom): '{font_family}' -> '{font_name_safe}'")
+    return font_name_safe
 
 
 def apply_animation(clip, animation_type: str):

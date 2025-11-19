@@ -78,10 +78,21 @@ export default function CaptionOverlay({
     const scaledY = firstCaption.position.y * scaleY;
     const scaleFactor = Math.min(scaleX, scaleY); // Use uniform scale for fonts
 
+    // Calculate max width (80% of video width to prevent overflow)
+    const maxWidth = videoWidth * 0.8;
+
+    // Check if we're editing this sentence
+    const isEditingThisSentence = editingId === firstCaption.id;
+
     return (
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div
           className="absolute pointer-events-auto"
+          onDoubleClick={() => {
+            if (!isEditingThisSentence) {
+              startEditing(firstCaption.id, sentenceText);
+            }
+          }}
           style={{
             left: `${scaledX}px`,
             top: `${scaledY}px`,
@@ -101,12 +112,41 @@ export default function CaptionOverlay({
               : 'transparent',
             padding: firstCaption.style.backgroundColor ? `${8 * scaleFactor}px ${16 * scaleFactor}px` : '0',
             borderRadius: firstCaption.style.backgroundColor ? `${4 * scaleFactor}px` : '0',
-            whiteSpace: 'nowrap',
+            whiteSpace: 'pre-wrap',
+            wordWrap: 'break-word',
+            maxWidth: `${maxWidth}px`,
             zIndex: firstCaption.zIndex,
             display: 'inline-block',
+            cursor: isEditingThisSentence ? 'text' : 'pointer',
           }}
         >
-          {sentenceText}
+          {isEditingThisSentence ? (
+            <textarea
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              onBlur={saveEdit}
+              onKeyDown={handleEditKeyDown}
+              autoFocus
+              style={{
+                fontSize: 'inherit',
+                fontFamily: 'inherit',
+                color: 'inherit',
+                fontWeight: 'inherit',
+                textTransform: 'inherit',
+                letterSpacing: 'inherit',
+                background: 'transparent',
+                border: '2px solid #3b82f6',
+                outline: 'none',
+                resize: 'none',
+                width: '100%',
+                minHeight: '1.5em',
+                padding: '4px',
+              }}
+              rows={Math.ceil(editText.length / 50) || 1}
+            />
+          ) : (
+            sentenceText
+          )}
         </div>
       </div>
     );

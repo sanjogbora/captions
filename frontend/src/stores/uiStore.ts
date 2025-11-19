@@ -51,6 +51,7 @@ interface UIState {
   setPendingPlacement: (position: { x: number; y: number } | null) => void;
   skip: (seconds: number) => void;
   saveStylePreset: (slot: number, name: string, style: Partial<CaptionStyle>) => void;
+  deleteStylePreset: (slot: number) => void;
   getStylePreset: (slot: number) => StylePreset | undefined;
 }
 
@@ -158,6 +159,12 @@ export const useUIStore = create<UIState>()(
         return { stylePresets: [...state.stylePresets, newPreset] };
       }
     });
+  },
+
+  deleteStylePreset: (slot) => {
+    set(state => ({
+      stylePresets: state.stylePresets.filter(p => p.id !== slot)
+    }));
   },
 
   getStylePreset: (slot) => {
