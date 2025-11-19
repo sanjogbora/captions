@@ -20,7 +20,7 @@ class Size(BaseModel):
 class CaptionStyle(BaseModel):
     templateId: str
     fontSize: int
-    fontFamily: str
+    fontFamily: Optional[str] = "Montserrat, sans-serif"  # Default to prevent None errors
     color: str
     strokeColor: Optional[str] = None
     strokeWidth: int = 0

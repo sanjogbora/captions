@@ -77,11 +77,16 @@ def render_video_with_captions(
             # Scale font size proportionally
             actual_font_size = int(caption.style.fontSize * min(scale_x, scale_y))
 
+            # Get font and ensure it's never None
+            font_family = map_font_family(caption.style.fontFamily)
+            if not font_family:
+                font_family = "Arial"  # Extra safety
+
             # Create text clip
             txt_clip = TextClip(
                 caption.word,
                 fontsize=actual_font_size,
-                font=map_font_family(caption.style.fontFamily),
+                font=font_family,
                 color=caption.style.color,
                 stroke_color=caption.style.strokeColor if caption.style.strokeColor else None,
                 stroke_width=int(caption.style.strokeWidth * min(scale_x, scale_y)) if caption.style.strokeWidth else 0,
@@ -133,15 +138,23 @@ def render_video_with_captions(
     return str(output_path)
 
 
-def map_font_family(font_family: str) -> str:
+def map_font_family(font_family) -> str:
     """Map web fonts to system fonts"""
+    # Handle None or empty font family
+    if not font_family:
+        print(f"⚠ Warning: font_family is None or empty, defaulting to Arial")
+        return "Arial"
+
     font_map = {
         "Impact, sans-serif": "Impact",
         "Montserrat, sans-serif": "Arial-Bold",
         "Bebas Neue, sans-serif": "Arial-Black",
         "Caveat, cursive": "Comic-Sans-MS",
     }
-    return font_map.get(font_family, "Arial")
+
+    mapped_font = font_map.get(font_family, "Arial")
+    print(f"  Font mapping: '{font_family}' -> '{mapped_font}'")
+    return mapped_font
 
 
 def apply_animation(clip, animation_type: str):
