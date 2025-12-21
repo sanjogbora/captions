@@ -100,7 +100,7 @@ export const DEFAULT_CAPTION_STYLE: StyleTemplate['style'] = {
   strokeWidth: 0,
   backgroundColor: '#000000',
   backgroundOpacity: 0.7,
-  animation: 'fade',
+  animation: 'none',  // Changed from 'fade' - no animation by default to match preview
   textTransform: 'none',
   fontWeight: 600,
   letterSpacing: 0,

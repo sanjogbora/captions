@@ -90,21 +90,52 @@ def parse_text_shadow(text_shadow: str) -> dict:
     return None
 
 
+def get_moviepy_font_name(font_family: str, font_weight: int) -> str:
+    """Get a font name that MoviePy/ImageMagick can use"""
+    # Extract base font name from CSS font-family
+    base_font = font_family.split(',')[0].strip().strip('"').strip("'")
+    is_bold = font_weight >= 600
+    
+    # Map common web fonts to ImageMagick-compatible names
+    font_map = {
+        "Montserrat": "Arial" if not is_bold else "Arial-Bold",
+        "Impact": "Impact",
+        "Bebas Neue": "Impact",  # Similar display font
+        "Caveat": "Comic-Sans-MS",  # Casual script fallback
+        "Arial": "Arial" if not is_bold else "Arial-Bold",
+        "Helvetica": "Arial" if not is_bold else "Arial-Bold",
+        "Times New Roman": "Times-New-Roman" if not is_bold else "Times-New-Roman-Bold",
+        "Georgia": "Georgia" if not is_bold else "Georgia-Bold",
+        "Courier New": "Courier-New" if not is_bold else "Courier-New-Bold",
+        "Verdana": "Verdana" if not is_bold else "Verdana-Bold",
+        "Comic Sans MS": "Comic-Sans-MS",
+        "Tahoma": "Tahoma" if not is_bold else "Tahoma-Bold",
+    }
+    
+    mapped = font_map.get(base_font)
+    if mapped:
+        print(f"  Font mapping: '{base_font}' (weight={font_weight}) -> '{mapped}'")
+        return mapped
+    
+    # Default fallback
+    default = "Arial-Bold" if is_bold else "Arial"
+    print(f"  Font mapping (fallback): '{base_font}' (weight={font_weight}) -> '{default}'")
+    return default
+
+
 def create_text_with_moviepy(caption, font_size: int, scale_x: float, scale_y: float):
     """Create text clip using MoviePy TextClip for simple styling"""
     try:
         # Apply text transform
         text = apply_text_transform(caption.word, caption.style.textTransform)
 
-        # Get font and ensure it's never None
-        font_family = map_font_family(caption.style.fontFamily, caption.style.fontWeight)
-        if not font_family:
-            font_family = "Arial"
+        # Get font name for MoviePy/ImageMagick
+        font_name = get_moviepy_font_name(caption.style.fontFamily, caption.style.fontWeight)
 
         # Build TextClip parameters
         text_params = {
             'fontsize': font_size,
-            'font': font_family,
+            'font': font_name,
             'color': caption.style.color,
             'method': 'label',
         }
@@ -130,37 +161,102 @@ def create_text_with_moviepy(caption, font_size: int, scale_x: float, scale_y: f
         return None
 
 
+def get_font_for_pil(font_family: str, font_weight: int, font_size: int):
+    """Get a PIL font object with proper fallback handling"""
+    # Common Windows font file mappings
+    font_file_map = {
+        # Sans-serif fonts
+        "arial": "arial.ttf",
+        "arial-bold": "arialbd.ttf",
+        "helvetica": "arial.ttf",  # Helvetica fallback to Arial on Windows
+        "verdana": "verdana.ttf",
+        "verdana-bold": "verdanab.ttf",
+        "tahoma": "tahoma.ttf",
+        "tahoma-bold": "tahomabd.ttf",
+        "trebuchet ms": "trebuc.ttf",
+        "trebuchet ms-bold": "trebucbd.ttf",
+        "segoe ui": "segoeui.ttf",
+        "segoe ui-bold": "segoeuib.ttf",
+        # Serif fonts
+        "times new roman": "times.ttf",
+        "times new roman-bold": "timesbd.ttf",
+        "georgia": "georgia.ttf",
+        "georgia-bold": "georgiab.ttf",
+        # Monospace fonts
+        "courier new": "cour.ttf",
+        "courier new-bold": "courbd.ttf",
+        "consolas": "consola.ttf",
+        "consolas-bold": "consolab.ttf",
+        # Display fonts
+        "impact": "impact.ttf",
+        "comic sans ms": "comic.ttf",
+        "comic sans ms-bold": "comicbd.ttf",
+        # Modern fonts that might be installed
+        "montserrat": "Montserrat-Regular.ttf",
+        "montserrat-bold": "Montserrat-Bold.ttf",
+        "bebas neue": "BebasNeue-Regular.ttf",
+        "caveat": "Caveat-Regular.ttf",
+    }
+    
+    # Extract base font name from CSS font-family
+    base_font = font_family.split(',')[0].strip().strip('"').strip("'").lower()
+    is_bold = font_weight >= 600
+    
+    # Try to find the font file
+    font_key = f"{base_font}-bold" if is_bold else base_font
+    font_file = font_file_map.get(font_key) or font_file_map.get(base_font)
+    
+    # Common font directories
+    font_dirs = [
+        "C:\\Windows\\Fonts",
+        os.path.expanduser("~\\AppData\\Local\\Microsoft\\Windows\\Fonts"),
+    ]
+    
+    # Try to load the specific font
+    if font_file:
+        for font_dir in font_dirs:
+            font_path = os.path.join(font_dir, font_file)
+            if os.path.exists(font_path):
+                try:
+                    return ImageFont.truetype(font_path, font_size)
+                except Exception as e:
+                    print(f"  Failed to load font {font_path}: {e}")
+    
+    # Fallback: try common fonts
+    fallback_fonts = ["arial.ttf", "arialbd.ttf" if is_bold else "arial.ttf", "segoeui.ttf"]
+    for fallback in fallback_fonts:
+        for font_dir in font_dirs:
+            font_path = os.path.join(font_dir, fallback)
+            if os.path.exists(font_path):
+                try:
+                    return ImageFont.truetype(font_path, font_size)
+                except:
+                    continue
+    
+    # Last resort: default font
+    print(f"  Warning: Using default font for '{font_family}'")
+    return ImageFont.load_default()
+
+
 def create_text_with_pil(caption, font_size: int, scale_x: float, scale_y: float):
-    """Create text clip using PIL for complex styling (shadows, letter spacing, rotation, etc.)"""
+    """
+    Create text clip using PIL for ALL caption rendering.
+    This ensures consistent output that matches the frontend CSS rendering.
+    """
     try:
         # Apply text transform
         text = apply_text_transform(caption.word, caption.style.textTransform)
+        
+        if not text:
+            print(f"  Warning: Empty text for caption")
+            return None
 
-        # Get font path
-        font_family = map_font_family(caption.style.fontFamily, caption.style.fontWeight)
-
-        # Try to load the font (fallback to default if not found)
-        try:
-            # Try Windows font paths
-            font_paths = [
-                f"C:\\Windows\\Fonts\\{font_family}.ttf",
-                f"C:\\Windows\\Fonts\\{font_family.lower()}.ttf",
-                f"C:\\Windows\\Fonts\\{font_family}bd.ttf",  # Bold variant
-                "C:\\Windows\\Fonts\\arial.ttf",  # Fallback
-            ]
-            font = None
-            for path in font_paths:
-                if os.path.exists(path):
-                    font = ImageFont.truetype(path, font_size)
-                    break
-
-            if font is None:
-                font = ImageFont.load_default()
-        except:
-            font = ImageFont.load_default()
+        # Get font using improved font loading
+        font = get_font_for_pil(caption.style.fontFamily, caption.style.fontWeight, font_size)
 
         # Calculate text size with letter spacing
-        letter_spacing_scaled = int(caption.style.letterSpacing * min(scale_x, scale_y))
+        scale_factor = min(scale_x, scale_y)
+        letter_spacing_scaled = int(caption.style.letterSpacing * scale_factor) if caption.style.letterSpacing else 0
 
         # Create a temporary draw object to measure text
         temp_img = Image.new('RGBA', (1, 1))
@@ -175,33 +271,52 @@ def create_text_with_pil(caption, font_size: int, scale_x: float, scale_y: float
             char_widths.append(char_width)
             total_width += char_width + letter_spacing_scaled
 
-        total_width -= letter_spacing_scaled  # Remove last spacing
+        total_width -= letter_spacing_scaled if len(text) > 0 else 0  # Remove last spacing
+        
+        # Ensure minimum width
+        total_width = max(total_width, 10)
 
-        # Get text height
+        # Get text height using full text for accurate measurement
         bbox = temp_draw.textbbox((0, 0), text, font=font)
-        text_height = bbox[3] - bbox[1]
+        text_height = max(bbox[3] - bbox[1], font_size)
+        text_baseline_offset = bbox[1]  # Offset from top to baseline
 
-        # Add padding for background
-        padding_x = int(16 * min(scale_x, scale_y)) if caption.style.backgroundColor else 0
-        padding_y = int(8 * min(scale_x, scale_y)) if caption.style.backgroundColor else 0
-
-        # Add extra space for shadows and effects
-        shadow_info = parse_text_shadow(caption.style.textShadow) if caption.style.textShadow else None
-        shadow_margin = 20 if shadow_info else 0
+        # Add padding for background (matching frontend: 8px vertical, 16px horizontal)
+        has_background = caption.style.backgroundColor is not None
+        padding_x = int(16 * scale_factor) if has_background else 0
+        padding_y = int(8 * scale_factor) if has_background else 0
 
         # Calculate stroke width
-        stroke_width = int(caption.style.strokeWidth * min(scale_x, scale_y)) if caption.style.strokeWidth else 0
+        stroke_width = int(caption.style.strokeWidth * scale_factor) if caption.style.strokeWidth and caption.style.strokeWidth > 0 else 0
 
-        # Create image with extra space for effects
-        img_width = total_width + (padding_x * 2) + (stroke_width * 4) + shadow_margin
-        img_height = text_height + (padding_y * 2) + (stroke_width * 4) + shadow_margin
+        # Parse shadow info and scale it
+        shadow_info = None
+        if caption.style.textShadow:
+            shadow_info = parse_text_shadow(caption.style.textShadow)
+            if shadow_info:
+                # Scale shadow parameters to match video dimensions
+                shadow_info['offset_x'] = int(shadow_info['offset_x'] * scale_factor)
+                shadow_info['offset_y'] = int(shadow_info['offset_y'] * scale_factor)
+                shadow_info['blur'] = max(1, int(shadow_info['blur'] * scale_factor))
+        
+        # Calculate margins needed for effects (minimum margin of 2 pixels)
+        shadow_offset_x = (abs(shadow_info['offset_x']) + shadow_info['blur'] + 2) if shadow_info else 2
+        shadow_offset_y = (abs(shadow_info['offset_y']) + shadow_info['blur'] + 2) if shadow_info else 2
+        effect_margin_x = max(stroke_width * 2 + 2, shadow_offset_x)
+        effect_margin_y = max(stroke_width * 2 + 2, shadow_offset_y)
 
-        img = Image.new('RGBA', (img_width, img_height), (0, 0, 0, 0))
+        # Create image with exact size needed
+        content_width = total_width + (padding_x * 2)
+        content_height = text_height + (padding_y * 2)
+        img_width = content_width + (effect_margin_x * 2)
+        img_height = content_height + (effect_margin_y * 2)
+
+        img = Image.new('RGBA', (int(img_width), int(img_height)), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
 
-        # Calculate starting position (centered in the extra space)
-        start_x = padding_x + (stroke_width * 2) + (shadow_margin // 2)
-        start_y = padding_y + (stroke_width * 2) + (shadow_margin // 2)
+        # Calculate starting position for text (accounting for margins)
+        text_start_x = effect_margin_x + padding_x
+        text_start_y = effect_margin_y + padding_y - text_baseline_offset
 
         # Draw background if enabled
         if caption.style.backgroundColor:
@@ -209,24 +324,31 @@ def create_text_with_pil(caption, font_size: int, scale_x: float, scale_y: float
             bg_alpha = int(caption.style.backgroundOpacity * 255)
             bg_color_with_alpha = bg_color + (bg_alpha,)
 
-            border_radius = int(4 * min(scale_x, scale_y))
-            # Draw rounded rectangle for background
+            border_radius = int(4 * scale_factor)
+            # Draw rounded rectangle for background at the correct position
+            bg_left = effect_margin_x
+            bg_top = effect_margin_y
+            bg_right = effect_margin_x + content_width
+            bg_bottom = effect_margin_y + content_height
+            
             draw.rounded_rectangle(
-                [(0, 0), (total_width + padding_x * 2, text_height + padding_y * 2)],
+                [(bg_left, bg_top), (bg_right, bg_bottom)],
                 radius=border_radius,
                 fill=bg_color_with_alpha
             )
 
         # Draw text shadow if enabled
         if shadow_info:
-            shadow_layer = Image.new('RGBA', (img_width, img_height), (0, 0, 0, 0))
+            shadow_layer = Image.new('RGBA', (int(img_width), int(img_height)), (0, 0, 0, 0))
             shadow_draw = ImageDraw.Draw(shadow_layer)
 
-            # Draw shadow text
-            x_pos = start_x + shadow_info['offset_x']
+            # Draw shadow text with offset
+            x_pos = text_start_x + shadow_info['offset_x']
+            y_pos = text_start_y + shadow_info['offset_y']
+            
             for i, char in enumerate(text):
                 shadow_draw.text(
-                    (x_pos, start_y + shadow_info['offset_y']),
+                    (x_pos, y_pos),
                     char,
                     font=font,
                     fill=shadow_info['color']
@@ -244,14 +366,14 @@ def create_text_with_pil(caption, font_size: int, scale_x: float, scale_y: float
         # Draw stroke (outline) if enabled
         if stroke_width > 0 and caption.style.strokeColor:
             stroke_color = hex_to_rgb(caption.style.strokeColor) + (255,)
-            x_pos = start_x
+            x_pos = text_start_x
             for i, char in enumerate(text):
-                # Draw outline by drawing text in multiple positions
+                # Draw outline by drawing text in multiple positions (circular pattern)
                 for dx in range(-stroke_width, stroke_width + 1):
                     for dy in range(-stroke_width, stroke_width + 1):
                         if dx*dx + dy*dy <= stroke_width*stroke_width:
                             draw.text(
-                                (x_pos + dx, start_y + dy),
+                                (x_pos + dx, text_start_y + dy),
                                 char,
                                 font=font,
                                 fill=stroke_color
@@ -260,9 +382,9 @@ def create_text_with_pil(caption, font_size: int, scale_x: float, scale_y: float
 
         # Draw main text with letter spacing
         text_color = hex_to_rgb(caption.style.color) + (255,)
-        x_pos = start_x
+        x_pos = text_start_x
         for i, char in enumerate(text):
-            draw.text((x_pos, start_y), char, font=font, fill=text_color)
+            draw.text((x_pos, text_start_y), char, font=font, fill=text_color)
             x_pos += char_widths[i] + letter_spacing_scaled
 
         # Apply rotation if needed
@@ -274,6 +396,10 @@ def create_text_with_pil(caption, font_size: int, scale_x: float, scale_y: float
 
         # Create ImageClip from the array
         img_clip = ImageClip(img_array, transparent=True)
+        
+        # Store the effect margin so we can adjust position later
+        img_clip.effect_margin_x = effect_margin_x
+        img_clip.effect_margin_y = effect_margin_y
 
         return img_clip
 
@@ -291,72 +417,97 @@ def render_video_with_captions(
     quality: str = "high"
 ) -> str:
     """
-    Render video with captions burned in using MoviePy
+    Render video with captions burned in using MoviePy.
+    
+    IMPORTANT: Always uses PIL rendering for consistency with the frontend preview.
+    The frontend uses CSS which PIL can replicate more accurately than ImageMagick.
     """
+    print("\n" + "="*60)
+    print("STARTING VIDEO RENDER")
+    print("="*60)
 
     # Load video
     video = VideoFileClip(video_path)
 
-    # Reference dimensions used in the editor
+    # Reference dimensions used in the editor (must match frontend REFERENCE_WIDTH/HEIGHT)
     REFERENCE_WIDTH = 800
     REFERENCE_HEIGHT = 450
 
-    # Scale factors
+    # Scale factors from reference to actual video dimensions
     scale_x = video.w / REFERENCE_WIDTH
     scale_y = video.h / REFERENCE_HEIGHT
+    scale_factor = min(scale_x, scale_y)
+
+    print(f"\nVideo dimensions: {video.w}x{video.h}")
+    print(f"Reference dimensions: {REFERENCE_WIDTH}x{REFERENCE_HEIGHT}")
+    print(f"Scale factors: x={scale_x:.3f}, y={scale_y:.3f}, uniform={scale_factor:.3f}")
+    
+    # Log all captions received
+    print(f"\n--- RECEIVED {len(captions)} CAPTIONS ---")
+    for i, cap in enumerate(captions):
+        print(f"  [{i}] '{cap.word}' | time: {cap.startTime:.2f}-{cap.endTime:.2f}s | pos: ({cap.position.x:.1f}, {cap.position.y:.1f}) | font: {cap.style.fontSize}px | animation: {cap.style.animation}")
+    print("---")
 
     # Create text clips for each caption
     text_clips = []
+    processed_ids = set()  # Track processed caption IDs to avoid duplicates
 
     for caption in captions:
+        # Skip if we've already processed this caption ID
+        if caption.id in processed_ids:
+            print(f"  ⚠ SKIPPING DUPLICATE caption ID: {caption.id}")
+            continue
+        processed_ids.add(caption.id)
+        
         try:
             # Scale position from reference to actual video dimensions
             actual_x = caption.position.x * scale_x
             actual_y = caption.position.y * scale_y
 
-            # Scale font size proportionally
-            actual_font_size = int(caption.style.fontSize * min(scale_x, scale_y))
+            # Scale font size proportionally (using uniform scale to maintain aspect ratio)
+            actual_font_size = int(caption.style.fontSize * scale_factor)
 
-            print(f"Processing caption '{caption.word}': pos=({actual_x:.1f}, {actual_y:.1f}), fontSize={actual_font_size}")
+            print(f"Processing caption '{caption.word}':")
+            print(f"  Reference pos: ({caption.position.x:.1f}, {caption.position.y:.1f})")
+            print(f"  Actual pos: ({actual_x:.1f}, {actual_y:.1f})")
+            print(f"  Font size: {caption.style.fontSize} -> {actual_font_size}")
+            print(f"  Animation: {caption.style.animation}")
 
-            # Check if we need complex rendering (text shadow, letter spacing, etc.)
-            needs_complex_rendering = (
-                caption.style.textShadow is not None or
-                caption.style.letterSpacing != 0 or
-                caption.style.rotation != 0 or
-                (caption.style.backgroundColor and caption.style.backgroundOpacity < 1.0)
+            # ALWAYS use PIL for consistent rendering
+            # This ensures the export matches the preview exactly
+            txt_clip = create_text_with_pil(
+                caption=caption,
+                font_size=actual_font_size,
+                scale_x=scale_x,
+                scale_y=scale_y
             )
-
-            if needs_complex_rendering:
-                # Use PIL for complex rendering
-                txt_clip = create_text_with_pil(
-                    caption=caption,
-                    font_size=actual_font_size,
-                    scale_x=scale_x,
-                    scale_y=scale_y
-                )
-            else:
-                # Use MoviePy TextClip for simple rendering
-                txt_clip = create_text_with_moviepy(
-                    caption=caption,
-                    font_size=actual_font_size,
-                    scale_x=scale_x,
-                    scale_y=scale_y
-                )
+            
+            # Adjust position to account for effect margins in PIL image
+            if txt_clip is not None and hasattr(txt_clip, 'effect_margin_x'):
+                actual_x -= txt_clip.effect_margin_x
+                actual_y -= txt_clip.effect_margin_y
+                print(f"  Adjusted pos for margins: ({actual_x:.1f}, {actual_y:.1f})")
 
             if txt_clip is None:
                 print(f"  ⚠ Failed to create caption for '{caption.word}'")
                 continue
 
-            # Position
+            # Position the clip
             txt_clip = txt_clip.set_position((actual_x, actual_y))
 
             # Set timing
             txt_clip = txt_clip.set_start(caption.startTime)
             txt_clip = txt_clip.set_duration(caption.endTime - caption.startTime)
 
-            # Apply animation
-            txt_clip = apply_animation(txt_clip, caption.style.animation)
+            # Apply animation - but only if it's not 'none' or 'fade'
+            # The frontend preview doesn't show animations, so we should match that
+            # by not applying fade animations that create unexpected dissolve effects
+            animation_type = caption.style.animation
+            if animation_type and animation_type not in ('none', 'fade'):
+                txt_clip = apply_animation(txt_clip, animation_type)
+                print(f"  Applied animation: {animation_type}")
+            else:
+                print(f"  No animation applied (type: {animation_type})")
 
             text_clips.append(txt_clip)
             print(f"  ✓ Successfully created caption for '{caption.word}'")
@@ -367,7 +518,13 @@ def render_video_with_captions(
             continue
 
     # Composite video with all text clips
-    print(f"\n✓ Created {len(text_clips)} out of {len(captions)} text clips")
+    print(f"\n" + "="*60)
+    print(f"RENDER SUMMARY")
+    print(f"="*60)
+    print(f"Total captions received: {len(captions)}")
+    print(f"Unique captions processed: {len(processed_ids)}")
+    print(f"Text clips created: {len(text_clips)}")
+    
     if text_clips:
         final_video = CompositeVideoClip([video] + text_clips)
     else:
@@ -395,72 +552,7 @@ def render_video_with_captions(
     return str(output_path)
 
 
-def map_font_family(font_family, font_weight: int = 400) -> str:
-    """Map web fonts to system fonts with weight support"""
-    # Handle None or empty font family
-    if not font_family:
-        print(f"⚠ Warning: font_family is None or empty, defaulting to Arial")
-        return "Arial" if font_weight < 600 else "Arial-Bold"
 
-    # Determine if bold variant is needed
-    is_bold = font_weight >= 600
-
-    # Base font mapping
-    font_map = {
-        # Map web fonts to system fonts (normal weight)
-        "Montserrat, sans-serif": "Arial",
-        "Impact, sans-serif": "Impact",
-        "Bebas Neue, sans-serif": "Arial-Black",
-        "Caveat, cursive": "Comic-Sans-MS",
-        "Arial, sans-serif": "Arial",
-        "Helvetica, sans-serif": "Helvetica",
-        "Times New Roman, serif": "Times-New-Roman",
-        "Georgia, serif": "Georgia",
-        "Courier New, monospace": "Courier-New",
-        "Verdana, sans-serif": "Verdana",
-        "Comic Sans MS, cursive": "Comic-Sans-MS",
-    }
-
-    # Bold variants
-    font_map_bold = {
-        "Montserrat, sans-serif": "Arial-Bold",
-        "Impact, sans-serif": "Impact",  # Impact is already bold
-        "Bebas Neue, sans-serif": "Arial-Black",  # Already bold
-        "Caveat, cursive": "Comic-Sans-MS-Bold",
-        "Arial, sans-serif": "Arial-Bold",
-        "Helvetica, sans-serif": "Helvetica-Bold",
-        "Times New Roman, serif": "Times-New-Roman-Bold",
-        "Georgia, serif": "Georgia-Bold",
-        "Courier New, monospace": "Courier-New-Bold",
-        "Verdana, sans-serif": "Verdana-Bold",
-        "Comic Sans MS, cursive": "Comic-Sans-MS-Bold",
-    }
-
-    # Choose appropriate map based on weight
-    active_map = font_map_bold if is_bold else font_map
-
-    # If exact match exists, use it
-    if font_family in active_map:
-        mapped_font = active_map[font_family]
-        print(f"  Font mapping: '{font_family}' (weight={font_weight}) -> '{mapped_font}'")
-        return mapped_font
-
-    # Otherwise, try to extract just the font name (for custom fonts)
-    # e.g., "MyFont, sans-serif" -> "MyFont"
-    font_name = font_family.split(',')[0].strip()
-
-    # Remove quotes if present
-    font_name = font_name.strip('"').strip("'")
-
-    # Replace spaces with hyphens for system fonts
-    font_name_safe = font_name.replace(' ', '-')
-
-    # Add Bold suffix if needed
-    if is_bold and not font_name_safe.endswith('Bold'):
-        font_name_safe += '-Bold'
-
-    print(f"  Font mapping (custom): '{font_family}' (weight={font_weight}) -> '{font_name_safe}'")
-    return font_name_safe
 
 
 def apply_animation(clip, animation_type: str):

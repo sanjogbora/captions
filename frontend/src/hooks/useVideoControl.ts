@@ -37,6 +37,46 @@ export function useVideoControl() {
       }
       const videoPath = `uploads/${filename}`;
 
+      // Log captions being sent for debugging
+      console.log('=== EXPORT: Sending captions to backend ===');
+      console.log(`Total captions: ${captions.length}`);
+      
+      // Check for duplicate IDs
+      const idSet = new Set<string>();
+      const duplicateIds: string[] = [];
+      captions.forEach((cap) => {
+        if (idSet.has(cap.id)) {
+          duplicateIds.push(cap.id);
+        }
+        idSet.add(cap.id);
+      });
+      
+      if (duplicateIds.length > 0) {
+        console.error('⚠️ DUPLICATE CAPTION IDs DETECTED:', duplicateIds);
+      }
+      
+      // Check for overlapping captions at same position
+      const positionMap = new Map<string, string[]>();
+      captions.forEach((cap) => {
+        const posKey = `${Math.round(cap.position.x)},${Math.round(cap.position.y)}`;
+        if (!positionMap.has(posKey)) {
+          positionMap.set(posKey, []);
+        }
+        positionMap.get(posKey)!.push(cap.word);
+      });
+      
+      console.log('Position distribution:');
+      positionMap.forEach((words, pos) => {
+        if (words.length > 1) {
+          console.warn(`  ⚠️ ${words.length} captions at position (${pos}): ${words.join(', ')}`);
+        }
+      });
+      
+      captions.forEach((cap, i) => {
+        console.log(`  [${i}] "${cap.word}" | id: ${cap.id.slice(0,8)}... | time: ${cap.startTime.toFixed(2)}-${cap.endTime.toFixed(2)}s | pos: (${cap.position.x.toFixed(1)}, ${cap.position.y.toFixed(1)}) | fontSize: ${cap.style.fontSize}`);
+      });
+      console.log('==========================================');
+
       const response = await fetch('http://localhost:8000/api/render/', {
         method: 'POST',
         headers: {

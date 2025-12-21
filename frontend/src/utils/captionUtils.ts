@@ -28,9 +28,10 @@ export function getDefaultCaptionPosition(
   videoHeight: number,
   textSize: Size
 ): Position {
-  // Default: centered position
+  // Default: centered horizontally, near bottom of video (like traditional subtitles)
   const x = (videoWidth - textSize.width) / 2;
-  const y = (videoHeight - textSize.height) / 2;
+  // Position at 85% of video height (near bottom, with some margin)
+  const y = videoHeight * 0.85 - textSize.height;
 
   return {
     x: Math.max(10, Math.min(videoWidth - textSize.width - 10, x)), // Keep within bounds
